@@ -131,7 +131,6 @@ contract PuppyRaffle is ERC721, Ownable {
     /// @dev we use a hash of on-chain data to generate the random numbers
     /// @dev we reset the active players array after the winner is selected
     /// @dev we send 80% of the funds to the winner, the other 20% goes to the feeAddress
-            // @audit - anyone should be able to call the function?
             // @audit - can be overflown
             // @audit - 0 addresses do take spaces in the array --> there can be length >= 4 but no active users
             // @audit - anyone can calucalate the "winnerIndex"

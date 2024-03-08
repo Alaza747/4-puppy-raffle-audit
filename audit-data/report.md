@@ -45,6 +45,7 @@ Lead Auditors:
 - [High](#high)
     - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact)
     - [\[H-#\] The reset of the `PuppyRaffle::players[playerIndex]` array happens after the external call `PuppyRaffle::sendValue()` which leads to a reentancy situation.](#h--the-reset-of-the-puppyraffleplayersplayerindex-array-happens-after-the-external-call-puppyrafflesendvalue-which-leads-to-a-reentancy-situation)
+    - [\[S-#\] The randomness generator in the `PuppyRaffle::selectWinner()` is not really random and can be influenced which breaks one of the main functioalities of the protocol "4. Every X seconds, the raffle will be able to draw a winner and be minted a random puppy"](#s--the-randomness-generator-in-the-puppyraffleselectwinner-is-not-really-random-and-can-be-influenced-which-breaks-one-of-the-main-functioalities-of-the-protocol-4-every-x-seconds-the-raffle-will-be-able-to-draw-a-winner-and-be-minted-a-random-puppy)
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
@@ -160,6 +161,8 @@ function testDoSAttack() public {
 
 **Recommended Mitigation:** 
 
+<hr>
+
 ### [H-#] The reset of the `PuppyRaffle::players[playerIndex]` array happens after the external call `PuppyRaffle::sendValue()` which leads to a reentancy situation.
 
 **Description:** In the function `PuppyRaffle::refund()` the array which stores the active users (i.e. those who have not yet refunded their `PuppyRaffle::entranceFee`) is updated after the external call `PuppyRaffle::sendValue()`. In that case a user might implement a malicious contract that would reenter the `PuppyRaffle::refund()` after receiving the entrance fee and clear out the contract's balance.
@@ -264,6 +267,29 @@ function testCanReenter() public playerEntered {
 2. *Use Reentrancy Guards*: Implement a reentrancy guard, such as the `nonReentrant` modifier from OpenZeppelin's `ReentrancyGuard` contract, to prevent reentrant calls. This modifier can be applied to functions that are susceptible to reentrancy attacks.
 
 3.  *Consider Using Pull Over Push Payments*: Instead of sending funds directly to the user within the `refund` function, consider implementing a system where users can withdraw their funds. This approach can help mitigate reentrancy risks by separating the state update from the external call.
+
+<hr>
+
+### [S-#] The randomness generator in the `PuppyRaffle::selectWinner()` is not really random and can be influenced which breaks one of the main functioalities of the protocol "4. Every X seconds, the raffle will be able to draw a winner and be minted a random puppy"
+
+**Description:** The `PuppyRaffle::selectWinner()` function's reliance on `msg.sender`, `block.timestamp`, `and block.difficulty` for determining the winner introduces vulnerabilities to manipulation by users or miners. Its external visibility allows any address to potentially influence the outcome, compromising the randomness of the selection process.
+
+```solidity
+    function selectWinner() external { 
+        require(block.timestamp >= raffleStartTime + raffleDuration, "PuppyRaffle: Raffle not over"); 
+        require(players.length >= 4, "PuppyRaffle: Need at least 4 players"); 
+        uint256 winnerIndex =
+@ -->       uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp, block.difficulty))) % players.length;
+        address winner = players[winnerIndex];
+        uint256 totalAmountCollected = players.length * entranceFee; 
+```
+
+
+**Impact:** The compromised randomness in the `PuppyRaffle::selectWinner()` function undermines the raffle's fairness and integrity, potentially favoring certain participants. This manipulation could lead to a skewed distribution of winners and erode trust in the system, affecting user engagement and the protocol's reputation.
+
+**Proof of Concept:**
+
+**Recommended Mitigation:** 
 
 
 # Medium
