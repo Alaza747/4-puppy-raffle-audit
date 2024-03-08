@@ -34,6 +34,31 @@ contract PuppyRaffleTest is Test {
         assertEq(puppyRaffle.players(0), playerOne);
     }
 
+    function testDoSAttack() public {
+        uint64 numPlayers = 100;
+        address[] memory players = new address[](numPlayers);
+        for (uint128 i = 0; i < numPlayers; i++) {
+            players[i] = address(uint160(i)); // Generate unique addresses
+        }
+        uint256 gasStartFirst = gasleft();
+        puppyRaffle.enterRaffle{value: entranceFee * numPlayers}(players);
+        uint256 gasEndFirst = gasleft();
+        uint256 gasCostFirst = gasStartFirst - gasEndFirst;
+        console.log(gasCostFirst);
+
+        address[] memory playersTwo = new address[](numPlayers);
+        for (uint128 i = 0; i < numPlayers; i++) {
+            playersTwo[i] = address(uint160(i + numPlayers)); // Generate unique addresses
+        }
+        uint256 gasStartSecond = gasleft();
+        puppyRaffle.enterRaffle{value: entranceFee * numPlayers}(playersTwo);
+        uint256 gasEndSecond = gasleft();
+        uint256 gasCostSecond = gasStartSecond - gasEndSecond;
+        console.log(gasCostSecond);
+
+        assert(gasCostSecond > gasCostFirst);
+    }
+
     function testCantEnterWithoutPaying() public {
         address[] memory players = new address[](1);
         players[0] = playerOne;

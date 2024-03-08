@@ -82,7 +82,7 @@ We use the [CodeHawks](https://docs.codehawks.com/hawks-auditors/how-to-evaluate
 - Solc Version: 0.7.6
 - Chain(s) to deploy contract to: Ethereum
 
-| file            | files | blank | comment | code |
+| file                | files | blank | comment | code |
 | ------------------- | ----- | ----- | ------- | ---- |
 | src/PuppyRaffle.sol | 1     | 30    | 43      | 143  |
 
@@ -106,11 +106,57 @@ Player - Participant of the raffle, has the power to enter the raffle with the `
 
 ### [S-#] Title (ROOT CAUSE + IMPACT)
 
-**Description:** 
+**Description:** Function `PuppyRaffle.sol::enterRaffle()` has a for-loop which checks for duplicate players and reverts if finds any. 
+The problem arises when the `PuppyRaffle.sol::players` array gets big and this could lead to a denial of service (i.e. the function `PuppyRaffle.sol::enterRaffle()` becomes unfinishable).
 
-**Impact:** 
+```solidity
+function enterRaffle(address[] memory newPlayers) public payable {
+        require(msg.value == entranceFee * newPlayers.length, "PuppyRaffle: Must send enough to enter raffle"); 
+        for (uint256 i = 0; i < newPlayers.length; i++) {
+            players.push(newPlayers[i]);
+        }
 
-**Proof of Concept:**
+        // Check for duplicates
+        for (uint256 i = 0; i < players.length - 1; i++) { 
+            for (uint256 j = i + 1; j < players.length; j++) {
+                require(players[i] != players[j], "PuppyRaffle: Duplicate player");
+            }
+        }
+        emit RaffleEnter(newPlayers);
+    }
+```
+
+**Impact:** Denial of Service could lead to the main functionality ("This project is to enter a raffle to win a cute dog NFT.") of the contract being inaccessible. 
+
+**Proof of Concept:** 
+In the test suite add the following test which proves that the gas cost of entering the raffle increases with the number of players taking part. 
+
+```solidity
+function testDoSAttack() public {
+        uint64 numPlayers = 100; // Set the number of players
+        address[] memory players = new address[](numPlayers); // Initialize an array for the players
+        for (uint128 i = 0; i < numPlayers; i++) {
+            players[i] = address(uint160(i)); // Generate unique addresses
+        }
+        uint256 gasStartFirst = gasleft(); // Record gas before the transaction
+        puppyRaffle.enterRaffle{value: entranceFee * numPlayers}(players); // Enter the raffle with the first group of players
+        uint256 gasEndFirst = gasleft(); // Record gas after the transaction
+        uint256 gasCostFirst = gasStartFirst - gasEndFirst; // Calculate the gas cost of the transaction
+        console.log(gasCostFirst); // Log the gas cost
+
+        address[] memory playersTwo = new address[](numPlayers); // Initialize a second array for the players
+        for (uint128 i = 0; i < numPlayers; i++) {
+            playersTwo[i] = address(uint160(i + numPlayers)); // Generate unique addresses for the second group
+        }
+        uint256 gasStartSecond = gasleft(); // Record gas before the second transaction
+        puppyRaffle.enterRaffle{value: entranceFee * numPlayers}(playersTwo); // Enter the raffle with the second group of players
+        uint256 gasEndSecond = gasleft(); // Record gas after the second transaction
+        uint256 gasCostSecond = gasStartSecond - gasEndSecond; // Calculate the gas cost of the second transaction
+        console.log(gasCostSecond); // Log the gas cost of the second transaction
+
+        assert(gasCostSecond > gasCostFirst); // Assert that the gas cost for the second transaction is higher
+    }
+```
 
 **Recommended Mitigation:** 
 
