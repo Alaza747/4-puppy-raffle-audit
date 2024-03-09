@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-// @audit no 0.8.0 arithmetic checking
 pragma solidity ^0.7.6;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -84,7 +83,6 @@ contract PuppyRaffle is ERC721, Ownable {
     /// @param newPlayers the list of players to enter the raffle
     // @audit - can one player enter the raffle multiple times by calling this function multiple times?
     // @audit - strict equality
-    // @audit - DoS attack on the for loops 
     function enterRaffle(address[] memory newPlayers) public payable {
         require(msg.value == entranceFee * newPlayers.length, "PuppyRaffle: Must send enough to enter raffle"); 
         for (uint256 i = 0; i < newPlayers.length; i++) {
@@ -131,9 +129,7 @@ contract PuppyRaffle is ERC721, Ownable {
     /// @dev we use a hash of on-chain data to generate the random numbers
     /// @dev we reset the active players array after the winner is selected
     /// @dev we send 80% of the funds to the winner, the other 20% goes to the feeAddress
-            // @audit - can be overflown
             // @audit - 0 addresses do take spaces in the array --> there can be length >= 4 but no active users
-            // @audit - anyone can calucalate the "winnerIndex"
             // @audit - "totalAmountCollected" can be manipulated (first increased and then refunded)
             // @question - external call to the player --> maybe let player get the prize instead? Reentrancy possible?
             // @question - what for is the downcasting of "fee"?
