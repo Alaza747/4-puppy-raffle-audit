@@ -46,6 +46,7 @@ Lead Auditors:
     - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact)
     - [\[H-#\] The reset of the `PuppyRaffle::players[playerIndex]` array happens after the external call `PuppyRaffle::sendValue()` which leads to a reentancy situation.](#h--the-reset-of-the-puppyraffleplayersplayerindex-array-happens-after-the-external-call-puppyrafflesendvalue-which-leads-to-a-reentancy-situation)
     - [\[S-#\] The randomness generator in the `PuppyRaffle::selectWinner()` is not really random and can be influenced which breaks one of the main functioalities of the protocol "4. Every X seconds, the raffle will be able to draw a winner and be minted a random puppy"](#s--the-randomness-generator-in-the-puppyraffleselectwinner-is-not-really-random-and-can-be-influenced-which-breaks-one-of-the-main-functioalities-of-the-protocol-4-every-x-seconds-the-raffle-will-be-able-to-draw-a-winner-and-be-minted-a-random-puppy)
+    - [\[S-#\] `PuppyRaffle::fee` is uint64 and can be overflown breaking the arithmetics of the protocol](#s--puppyrafflefee-is-uint64-and-can-be-overflown-breaking-the-arithmetics-of-the-protocol)
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
@@ -289,8 +290,120 @@ function testCanReenter() public playerEntered {
 
 **Proof of Concept:**
 
-**Recommended Mitigation:** 
+**Recommended Mitigation:** To mitigate the vulnerability in the `PuppyRaffle::selectWinner()` function, which relies on `msg.sender`, `block.timestamp`, and `block.difficulty` for determining the winner, you can implement a more secure and unpredictable randomness mechanism. Two popular solutions for generating secure random numbers in smart contracts are Chainlink VRF (Verifiable Random Function) and a Commit-Reveal Scheme. Below are detailed explanations and code examples for both approaches:
 
+Chainlink VRF
+Chainlink VRF provides a provably fair and verifiable source of randomness. It uses a combination of cryptographic techniques to ensure that the random number cannot be predicted or manipulated by any party.
+
+Integration with Chainlink VRF: 
+1. First, you need to integrate your smart contract with Chainlink VRF. This involves requesting a random number from the Chainlink VRF oracle and using the response to select the winner.
+2. Requesting a Random Number: You can request a random number by calling the requestRandomness function provided by the Chainlink VRF contract. This function takes a key hash and a fee as arguments.
+3. Using the Random Number: Once the random number is returned by the Chainlink VRF oracle, you can use it to select the winner. The random number is provided as a bytes32 value, which you can convert to a uint256 and use in your selection logic.
+For more details on Chainlink VRF, visit the [Chainlink VRF Documentation](https://docs.chain.link/docs/get-a-random-number/).
+
+Commit-Reveal Scheme
+A Commit-Reveal Scheme involves participants committing to a secret value (their choice) and then revealing it in a public manner. The reveal phase is designed to be fair and unbiased, ensuring that the outcome is determined by the participants' choices rather than any external factors.
+
+1. Commit Phase: Participants submit their secret choices (e.g., a hash of their choice) to the contract.
+2. Reveal Phase: After a certain period, participants reveal their choices. The contract verifies that the revealed choice matches the committed choice and uses these to select the winner.
+3. Selection: The winner is determined based on the revealed choices, ensuring that the outcome is fair and unpredictable.
+
+For more information on Commit-Reveal Schemes, you can refer to academic papers and articles on the topic, such as this [paper](https://eprint.iacr.org/2015/1090.pdfk) on the subject.
+
+### [S-#] `PuppyRaffle::fee` is uint64 and can be overflown breaking the arithmetics of the protocol
+
+**Description:** In the `PuppyRaffle::selectWinner()` the fee can be overflown if it rises above the level of max(uint64), which is equal to "18446744073709551615". 
+
+```solidity
+    function selectWinner() external { 
+        require(block.timestamp >= raffleStartTime + raffleDuration, "PuppyRaffle: Raffle not over"); 
+        require(players.length >= 4, "PuppyRaffle: Need at least 4 players"); 
+        uint256 winnerIndex =
+            uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp, block.difficulty))) % players.length;
+        address winner = players[winnerIndex];
+        uint256 totalAmountCollected = players.length * entranceFee; 
+        uint256 prizePool = (totalAmountCollected * 80) / 100;
+        uint256 fee = (totalAmountCollected * 20) / 100;
+@ -->   totalFees = totalFees + uint64(fee)
+        ...
+
+```
+
+**Impact:** If the `entranceFee` is set to higher than the value "18446744073709551615", it will wrap around in the `PuppyRaffle::selectWinner()` and start again at "0", which would lead to the loss of fee amount.
+
+**Proof of Concept:**
+1. Creata a new test file with the `entranceFee` set higher than the `type(uint64).max`:
+```solidity
+    contract Audit_Arithmetics_PoCTest is Test {
+        PuppyRaffle puppyRaffle;
+@-->    uint256 entranceFee = 28446744073709551615;
+```
+
+2. Add the following test:
+```solidity
+    function testArithmetics() public playersEntered{
+        console.log("Entrance Fee: ", entranceFee);
+        console.log("Number of Players: ", players.length);
+        vm.warp(block.timestamp + duration + 1);
+        vm.roll(block.number + 1);
+
+
+        uint256 expectedPayout = ((entranceFee * 4) * 80 / 100);
+        uint256 expectedFee = ((entranceFee * 4) * 20 / 100);
+        console.log("Expected fee Before: ", expectedFee);
+        console.log("Total fee Before: ", puppyRaffle.totalFees());
+
+
+        puppyRaffle.selectWinner();
+        console.log("Real Payout: ", expectedPayout);
+        console.log("Real fee After: ", puppyRaffle.totalFees());
+
+        assertEq(puppyRaffle.totalFees(), expectedFee);
+    }
+```
+
+3. Run the test and check the output:
+```bash
+        [FAIL. Reason: assertion failed] testArithmetics() (gas: 396996)
+        Logs:
+        Entrance Fee:  28446744073709551615
+        Number of Players:  4
+@-->    Expected fee Before:  22757395258967641292
+        Total fee Before:  0
+        Real Payout:  91029581035870565168
+@-->    Real fee After:  4310651185258089676
+        Error: a == b not satisfied [uint]
+                Left: 4310651185258089676
+            Right: 22757395258967641292
+
+        Suite result: FAILED. 0 passed; 1 failed; 0 skipped;
+```
+
+The expected amount of totalFees is higher than the real amount.
+
+**Recommended Mitigation:** There are couple of ways to mitigate this problem:
+1. Remove the downcasting in the `PuppyRaffle::selectWinner()` function:
+```diff
+    function selectWinner() external { 
+            require(block.timestamp >= raffleStartTime + raffleDuration, "PuppyRaffle: Raffle not over"); 
+            require(players.length >= 4, "PuppyRaffle: Need at least 4 players"); 
+            uint256 winnerIndex =
+                uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp, block.difficulty))) % players.length;
+            address winner = players[winnerIndex];
+            uint256 totalAmountCollected = players.length * entranceFee; 
+            uint256 prizePool = (totalAmountCollected * 80) / 100;
+            uint256 fee = (totalAmountCollected * 20) / 100;
+--          totalFees = totalFees + uint64(fee); 
+++          totalFees = totalFees + fee;
+            uint256 tokenId = totalSupply();
+```
+
+2. Use solidity version of higher than 0.8.0, because it has Arithmetic operations checked by default.
+```diff
+    // SPDX-License-Identifier: MIT
+--  pragma solidity ^0.7.6;
+++  pragma solidity ^0.8.0;
+```
 
 # Medium
 # Low 

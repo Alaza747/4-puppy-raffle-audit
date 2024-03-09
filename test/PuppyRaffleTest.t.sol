@@ -290,4 +290,5 @@ contract Attack {
             puppyRaffle.refund(attackerIndex);
         }
     }
+
 }
