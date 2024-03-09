@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 import {Test, console} from "forge-std/Test.sol";
 import {PuppyRaffle} from "../src/PuppyRaffle.sol";
 
-contract Audit_Arithmetics_PoCTest is Test {
+contract Audit_PoC_Overflow is Test {
     PuppyRaffle puppyRaffle;
     uint256 entranceFee = 28446744073709551615;
     address playerOne = address(1);

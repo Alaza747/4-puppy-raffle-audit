@@ -47,6 +47,7 @@ Lead Auditors:
     - [\[H-#\] The reset of the `PuppyRaffle::players[playerIndex]` array happens after the external call `PuppyRaffle::sendValue()` which leads to a reentancy situation.](#h--the-reset-of-the-puppyraffleplayersplayerindex-array-happens-after-the-external-call-puppyrafflesendvalue-which-leads-to-a-reentancy-situation)
     - [\[S-#\] The randomness generator in the `PuppyRaffle::selectWinner()` is not really random and can be influenced which breaks one of the main functioalities of the protocol "4. Every X seconds, the raffle will be able to draw a winner and be minted a random puppy"](#s--the-randomness-generator-in-the-puppyraffleselectwinner-is-not-really-random-and-can-be-influenced-which-breaks-one-of-the-main-functioalities-of-the-protocol-4-every-x-seconds-the-raffle-will-be-able-to-draw-a-winner-and-be-minted-a-random-puppy)
     - [\[S-#\] `PuppyRaffle::fee` is uint64 and can be overflown breaking the arithmetics of the protocol](#s--puppyrafflefee-is-uint64-and-can-be-overflown-breaking-the-arithmetics-of-the-protocol)
+    - [\[S-#\] Unsafe casting of uint256 to uint64 would lead to loss of fee funds, if `fee` is higher than `type(uint64).max`, which is approximately 18.45 ether.](#s--unsafe-casting-of-uint256-to-uint64-would-lead-to-loss-of-fee-funds-if-fee-is-higher-than-typeuint64max-which-is-approximately-1845-ether)
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
@@ -405,6 +406,108 @@ The expected amount of totalFees is higher than the real amount.
 ++  pragma solidity ^0.8.0;
 ```
 
+
+### [S-#] Unsafe casting of uint256 to uint64 would lead to loss of fee funds, if `fee` is higher than `type(uint64).max`, which is approximately 18.45 ether.
+
+**Description:** The `PuppyRaffle::fee` variable is initially defined as uint256, but then downcasted to uint64. Downcasting leads to concatenation of the variable, which in the case of uint would mean loss of fee funds.
+
+```solidity
+    function selectWinner() external { 
+            require(block.timestamp >= raffleStartTime + raffleDuration, "PuppyRaffle: Raffle not over"); 
+            require(players.length >= 4, "PuppyRaffle: Need at least 4 players"); 
+            uint256 winnerIndex =
+                uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp, block.difficulty))) % players.length;
+            address winner = players[winnerIndex];
+            uint256 totalAmountCollected = players.length * entranceFee; 
+            uint256 prizePool = (totalAmountCollected * 80) / 100;
+@-->        uint256 fee = (totalAmountCollected * 20) / 100;
+@-->        totalFees = totalFees + uint64(fee); 
+```
+
+**Impact:** This issue will result in the loss of the fee eligible for the contract.
+
+**Proof of Concept:** Use the following test with 12 players participating in the raffle and the `entranceFee` set to 10 ether:
+```solidity
+    contract Audit_PoC_Downcasting is Test {
+        PuppyRaffle puppyRaffle;
+        uint256 entranceFee = 10e18;
+        address playerOne = address(1);
+        address playerTwo = address(2);
+        address playerThree = address(3);
+        address playerFour = address(4);
+        address playerFive = address(5);
+        address playerSix = address(6);
+        address playerSeven = address(7);
+        address playerEight = address(8);
+        address playerNine = address(9);
+        address playerTen = address(10);
+        address playerEleven = address(11);
+        address playerTwelve = address(12);
+        address feeAddress = address(99);
+        uint256 duration = 1 days;
+        address[] players;
+```
+
+
+```solidity
+    function testDowncasting() public playersEntered{
+        console.log("Entrance Fee: ", entranceFee / 1e18);
+        console.log("Number of Players: ", players.length);
+        vm.warp(block.timestamp + duration + 1);
+        vm.roll(block.number + 1);
+
+
+        uint256 expectedPayout = ((entranceFee * players.length) * 80 / 100);
+        uint256 expectedFee = ((entranceFee * players.length) * 20 / 100);
+        console.log("Expected fee Before: ", expectedFee / 1e18);
+        console.log("Total fee Before: ", puppyRaffle.totalFees());
+
+
+        puppyRaffle.selectWinner();
+        console.log("Real Winner Payout: ", expectedPayout / 1e18);
+        console.log("Real fee After: ", puppyRaffle.totalFees() / 1e18);
+
+        assertEq(puppyRaffle.totalFees(), expectedFee);
+```
+Output:
+```bash
+    [FAIL. Reason: assertion failed] testDowncasting() (gas: 740408)
+    Logs:
+    Entrance Fee:  10
+    Number of Players:  12
+    Expected fee Before:  24
+    Total fee Before:  0
+    Real Winner Payout:  96
+    Real fee After:  5
+    Error: a == b not satisfied [uint]
+            Left: 5553255926290448384
+        Right: 24000000000000000000
+
+    Suite result: FAILED. 0 passed; 1 failed; 0 skipped; finished in 4.43ms (974.54µs CPU time)
+
+    Ran 1 test suite in 169.99ms (4.43ms CPU time): 0 tests passed, 1 failed, 0 skipped (1 total tests)
+
+    Failing tests:
+    Encountered 1 failing test in test/Audit_PoC_Downcasting.t.sol:Audit_PoC_Downcasting
+    [FAIL. Reason: assertion failed] testDowncasting() (gas: 740408)
+```
+
+**Recommended Mitigation:** Remove the downcast from the `PuppyRaffle::selectWinner()` function:
+
+```diff
+    function selectWinner() external { 
+            require(block.timestamp >= raffleStartTime + raffleDuration, "PuppyRaffle: Raffle not over"); 
+            require(players.length >= 4, "PuppyRaffle: Need at least 4 players"); 
+            uint256 winnerIndex =
+                uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp, block.difficulty))) % players.length;
+            address winner = players[winnerIndex];
+            uint256 totalAmountCollected = players.length * entranceFee; 
+            uint256 prizePool = (totalAmountCollected * 80) / 100;
+            uint256 fee = (totalAmountCollected * 20) / 100;
+--          totalFees = totalFees + uint64(fee); 
+++          totalFees = totalFees + fee;
+            uint256 tokenId = totalSupply();
+```
 # Medium
 # Low 
 # Informational
