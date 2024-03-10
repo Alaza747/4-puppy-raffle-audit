@@ -102,7 +102,7 @@ contract PuppyRaffleTest is Test {
 
     //////////////////////
     /// Refund         ///
-    /////////////////////
+    //////////////////////
     modifier playerEntered() {
         address[] memory players = new address[](1);
         players[0] = playerOne;

