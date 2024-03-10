@@ -53,7 +53,7 @@ Lead Auditors:
     - [\[I-#\] `PuppyRaffle::_isActivePlayer()` is set to internal and not called anywhere, effectively being an unused code](#i--puppyraffle_isactiveplayer-is-set-to-internal-and-not-called-anywhere-effectively-being-an-unused-code)
     - [\[I-#\] Inconsistent documentation, which could irritate potential users](#i--inconsistent-documentation-which-could-irritate-potential-users)
     - [\[S-#\] `Refund()` function has no impact on the length of the array which is used to calculate the `totalAmountCollected`, which could lead to manipulation and loss of funds for the contract](#s--refund-function-has-no-impact-on-the-length-of-the-array-which-is-used-to-calculate-the-totalamountcollected-which-could-lead-to-manipulation-and-loss-of-funds-for-the-contract)
-    - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact)
+    - [\[S-#\] `Refund()` function has no impact on the length of the array, the slots of the array are still "participating in the raffle" and can win the raffle, which would lead to sending the `prizePool` to the 0-address](#s--refund-function-has-no-impact-on-the-length-of-the-array-the-slots-of-the-array-are-still-participating-in-the-raffle-and-can-win-the-raffle-which-would-lead-to-sending-the-prizepool-to-the-0-address)
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
@@ -792,15 +792,15 @@ To address the issue of the `refund()` function not impacting the length of the 
 
 2. Use a Mapping: Instead of using an array to track players, use a mapping to keep track of active players. This way, you can easily remove players from the mapping when they refund.
 
-### [S-#] Title (ROOT CAUSE + IMPACT)
+### [S-#] `Refund()` function has no impact on the length of the array, the slots of the array are still "participating in the raffle" and can win the raffle, which would lead to sending the `prizePool` to the 0-address
 
-**Description:** 
+**Description:** The `Refund()` function does not update the array fully. The index of the player who has called `refund()` can still win. 
 
-**Impact:** 
+**Impact:** By entering the raffle and then calling `Refund()` function one can increase the length of the array indefinitely and thereby decrease the chance of winning for "real" players (ones continue to participate in the raffle)
 
-**Proof of Concept:**
+**Proof of Concept:** See the aforementioned `Refund()` issue.
 
-**Recommended Mitigation:** 
+**Recommended Mitigation:** See the aforementioned `Refund()` issue.
 
 
 # Medium
