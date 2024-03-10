@@ -50,8 +50,8 @@ Lead Auditors:
     - [\[S-#\] Unsafe casting of uint256 to uint64 would lead to loss of fee funds, if `fee` is higher than `type(uint64).max`, which is approximately 18.45 ether.](#s--unsafe-casting-of-uint256-to-uint64-would-lead-to-loss-of-fee-funds-if-fee-is-higher-than-typeuint64max-which-is-approximately-1845-ether)
     - [\[S-#\] The `PuppyRaffle::withdrawFees()` function is sucseptible to self-destruct attacks, which would lead to fees being stuck in the contact.](#s--the-puppyrafflewithdrawfees-function-is-sucseptible-to-self-destruct-attacks-which-would-lead-to-fees-being-stuck-in-the-contact)
     - [\[S-#\] No 0-address checking during the change of `feeAddress`, which could effectively lead to blocking the ability to withdraw fees and/or loss of funds.](#s--no-0-address-checking-during-the-change-of-feeaddress-which-could-effectively-lead-to-blocking-the-ability-to-withdraw-fees-andor-loss-of-funds)
+    - [\[I-#\] `PuppyRaffle::_isActivePlayer()` is set to internal and not called anywhere, effectively being an unused code](#i--puppyraffle_isactiveplayer-is-set-to-internal-and-not-called-anywhere-effectively-being-an-unused-code)
     - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact-1)
-    - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact-2)
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
@@ -649,15 +649,15 @@ Remove the first require statement from the `PuppyRidge::withdrawFees()` functio
 ```
 
 
-### [S-#] Title (ROOT CAUSE + IMPACT)
+### [I-#] `PuppyRaffle::_isActivePlayer()` is set to internal and not called anywhere, effectively being an unused code
 
-**Description:** 
+**Description:** The `_isActivePlayer()` function's visibility is set to internal and not called anywhere. This function does not bring any value
 
-**Impact:** 
+**Impact:** NA 
 
-**Proof of Concept:**
+**Proof of Concept:** NA
 
-**Recommended Mitigation:** 
+**Recommended Mitigation:** If the functionality of the function `_isActivePlayer()` is required, visibility should be changed or the function should be called from the relevant function within the contract.
 
 
 
