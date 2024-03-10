@@ -15,12 +15,17 @@ import {Base64} from "lib/base64/base64.sol";
 /// 3. Users are allowed to get a refund of their ticket & `value` if they call the `refund` function 
 /// 4. Every X seconds, the raffle will be able to draw a winner and be minted a random puppy 
 /// 5. The owner of the protocol will set a feeAddress to take a cut of the `value`, and the rest of the funds will be sent to the winner of the puppy. 
-contract PuppyRaffle is ERC721, Ownable {
+contract PuppyRaffleForTest is ERC721, Ownable {
     using Address for address payable;
 
     uint256 public immutable entranceFee;
 
     address[] public players;
+
+    function getArrayLength() public view returns (uint) {
+        return players.length;
+    }
+
     uint256 public raffleDuration;
     uint256 public raffleStartTime;
     address public previousWinner;

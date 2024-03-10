@@ -43,7 +43,7 @@ Lead Auditors:
   - [Issues found](#issues-found)
 - [Findings](#findings)
 - [High](#high)
-    - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact)
+    - [\[S-#\] DoS issue in the for loop, which could lead to the break of the contract](#s--dos-issue-in-the-for-loop-which-could-lead-to-the-break-of-the-contract)
     - [\[H-#\] The reset of the `PuppyRaffle::players[playerIndex]` array happens after the external call `PuppyRaffle::sendValue()` which leads to a reentancy situation.](#h--the-reset-of-the-puppyraffleplayersplayerindex-array-happens-after-the-external-call-puppyrafflesendvalue-which-leads-to-a-reentancy-situation)
     - [\[S-#\] The randomness generator in the `PuppyRaffle::selectWinner()` is not really random and can be influenced which breaks one of the main functioalities of the protocol "4. Every X seconds, the raffle will be able to draw a winner and be minted a random puppy"](#s--the-randomness-generator-in-the-puppyraffleselectwinner-is-not-really-random-and-can-be-influenced-which-breaks-one-of-the-main-functioalities-of-the-protocol-4-every-x-seconds-the-raffle-will-be-able-to-draw-a-winner-and-be-minted-a-random-puppy)
     - [\[S-#\] `PuppyRaffle::fee` is uint64 and can be overflown breaking the arithmetics of the protocol](#s--puppyrafflefee-is-uint64-and-can-be-overflown-breaking-the-arithmetics-of-the-protocol)
@@ -51,7 +51,9 @@ Lead Auditors:
     - [\[S-#\] The `PuppyRaffle::withdrawFees()` function is sucseptible to self-destruct attacks, which would lead to fees being stuck in the contact.](#s--the-puppyrafflewithdrawfees-function-is-sucseptible-to-self-destruct-attacks-which-would-lead-to-fees-being-stuck-in-the-contact)
     - [\[S-#\] No 0-address checking during the change of `feeAddress`, which could effectively lead to blocking the ability to withdraw fees and/or loss of funds.](#s--no-0-address-checking-during-the-change-of-feeaddress-which-could-effectively-lead-to-blocking-the-ability-to-withdraw-fees-andor-loss-of-funds)
     - [\[I-#\] `PuppyRaffle::_isActivePlayer()` is set to internal and not called anywhere, effectively being an unused code](#i--puppyraffle_isactiveplayer-is-set-to-internal-and-not-called-anywhere-effectively-being-an-unused-code)
-    - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact-1)
+    - [\[I-#\] Inconsistent documentation, which could irritate potential users](#i--inconsistent-documentation-which-could-irritate-potential-users)
+    - [\[S-#\] `Refund()` function has no impact on the length of the array which is used to calculate the `totalAmountCollected`, which could lead to manipulation and loss of funds for the contract](#s--refund-function-has-no-impact-on-the-length-of-the-array-which-is-used-to-calculate-the-totalamountcollected-which-could-lead-to-manipulation-and-loss-of-funds-for-the-contract)
+    - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact)
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
@@ -111,7 +113,7 @@ Player - Participant of the raffle, has the power to enter the raffle with the `
 # Findings
 # High
 
-### [S-#] Title (ROOT CAUSE + IMPACT)
+### [S-#] DoS issue in the for loop, which could lead to the break of the contract
 
 **Description:** Function `PuppyRaffle.sol::enterRaffle()` has a for-loop which checks for duplicate players and reverts if finds any. 
 The problem arises when the `PuppyRaffle.sol::players` array gets big and this could lead to a denial of service (i.e. the function `PuppyRaffle.sol::enterRaffle()` becomes unfinishable).
@@ -661,6 +663,135 @@ Remove the first require statement from the `PuppyRidge::withdrawFees()` functio
 
 
 
+### [I-#] Inconsistent documentation, which could irritate potential users
+
+**Description:** The documentation first states that one can enter himself "multiple times", but the next point tells the user, that duplicate addresses are not allowed. The latter is also consistent with the checks in the code.
+
+"
+1. Call the `enterRaffle` function with the following parameters:
+   1. `address[] participants`: A list of addresses that enter. You can use this to enter yourself multiple times, or yourself and a group of your friends.
+2. Duplicate addresses are not allowed
+"
+
+**Impact:** User irritation. Potentially loss of revenue, if user doesn't manage enter the Raffle.
+
+**Proof of Concept:** NA
+
+**Recommended Mitigation:** Rewrite the documentation.
+
+
+
+### [S-#] `Refund()` function has no impact on the length of the array which is used to calculate the `totalAmountCollected`, which could lead to manipulation and loss of funds for the contract
+
+**Description:** In the `PuppyRaffle::selectWinner()` function `totalAmountCollected` is calculated by multiplying the length of the `players` array by the entranceFee. The problem is that the length of the `players` array stays the same even if one or many players have refunded their `entranceFee`s. This leads to incorrect calculation of the total amount of funds in the current Raffle. 
+
+selectWinner() function:
+```solidity
+    function selectWinner() external { 
+        require(block.timestamp >= raffleStartTime + raffleDuration, "PuppyRaffle: Raffle not over"); 
+        require(players.length >= 4, "PuppyRaffle: Need at least 4 players"); 
+        uint256 winnerIndex =
+            uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp, block.difficulty))) % players.length;
+        address winner = players[winnerIndex];
+@--->   uint256 totalAmountCollected = players.length * entranceFee; 
+        uint256 prizePool = (totalAmountCollected * 80) / 100;
+        uint256 fee = (totalAmountCollected * 20) / 100;
+        totalFees = totalFees + uint64(fee); 
+
+```
+
+refund() function:
+```solidity
+    function refund(uint256 playerIndex) public {
+        address playerAddress = players[playerIndex];
+        require(playerAddress == msg.sender, "PuppyRaffle: Only the player can refund");
+        require(playerAddress != address(0), "PuppyRaffle: Player already refunded, or is not active");
+
+        payable(msg.sender).sendValue(entranceFee);
+
+        players[playerIndex] = address(0);
+        emit RaffleRefunded(playerAddress);
+    }
+```
+
+**Impact:** 
+
+The `refund()` function's failure to update the `players` array length when a player refunds can lead to an overestimation of the total amount collected, affecting the prize pool and fees calculations. This can result in:
+
+- Incorrect Prize Pool: The prize pool may be larger than the actual funds, potentially causing the contract to fail when distributing the prize.
+- Incorrect Fees: The fees may be higher than they should be, which could cause the contract to fail when distributing the fees.
+- Manipulation: Malicious actors could refund and re-enter the raffle, gaming the system to increase their chances of winning.
+- Loss of Funds: The contract could lose funds due to incorrect calculations, affecting the contract's and participants' financial interests.
+
+The severity of this issue is high, as it can lead to contract failure and financial losses, undermining the integrity and trust in the raffle system.
+
+**Proof of Concept:** Proof that array lenght is not changed after the `refund()` is called:
+
+Helper function in `PuppyRaffle`:
+```solidity
+    function getArrayLength() public view returns (uint) {
+        return players.length;
+    }
+```
+
+Actual test:
+```solidity
+    function testCanManipulatePlayersArray() public playersEntered {
+        console.log("Array length before refund: ", puppyRaffleForTest.getArrayLength());
+        console.log("Player Address at position 1 of the array: ", puppyRaffleForTest.players(1));
+        console.log("Balance before the refund: ", address(puppyRaffleForTest).balance);
+        
+        vm.prank(playerTwo);
+        puppyRaffleForTest.refund(1);
+        console.log("Array length after refund: ", puppyRaffleForTest.getArrayLength());
+        console.log("Player Address at position 1 of the array: ", puppyRaffleForTest.players(1));
+        console.log("Balance after the refund: ", address(puppyRaffleForTest).balance);
+
+        assert(
+            address(puppyRaffleForTest).balance != 
+            puppyRaffleForTest.entranceFee() * puppyRaffleForTest.getArrayLength());
+    }
+```
+
+Output:
+```bash
+    Ran 1 test for test/Audit_PoC_Manipulation.t.sol:Audit_PoC_Manipulation
+    [PASS] testCanManipulatePlayersArray() (gas: 177347)
+    Logs:
+        Array length before refund:  4
+        Player Address at position 1 of the array:  0x0000000000000000000000000000000000000002
+        Balance before the refund:  4000000000000000000
+        Array length after refund:  4
+        Player Address at position 1 of the array:  0x0000000000000000000000000000000000000000
+        Balance after the refund:  3000000000000000000
+
+    Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 4.78ms (925.79µs CPU time)
+```
+
+**Recommended Mitigation:** 
+To address the issue of the `refund()` function not impacting the length of the `players` array, consider the following strategies:
+
+1. Update Array Length: Modify the `refund()` function to remove the player from the `players` array when they refund. This can be done by shifting the last element of the array into the position of the refunded player and then decrementing the array length.
+
+```diff
+    function refund(uint256 playerIndex) public {
+        address playerAddress = players[playerIndex];
+        require(playerAddress == msg.sender, "PuppyRaffle: Only the player can refund");
+        require(playerAddress != address(0), "PuppyRaffle: Player already refunded, or is not active");
+
+        payable(msg.sender).sendValue(entranceFee);
+
++       // Shift the last player into the position of the refunded player
++       players[playerIndex] = players[players.length - 1];
++       // Decrement the array length
++       players.pop();
+
+        emit RaffleRefunded(playerAddress);
+    }
+```
+
+2. Use a Mapping: Instead of using an array to track players, use a mapping to keep track of active players. This way, you can easily remove players from the mapping when they refund.
+
 ### [S-#] Title (ROOT CAUSE + IMPACT)
 
 **Description:** 
@@ -670,7 +801,6 @@ Remove the first require statement from the `PuppyRidge::withdrawFees()` functio
 **Proof of Concept:**
 
 **Recommended Mitigation:** 
-
 
 
 # Medium
