@@ -54,6 +54,7 @@ Lead Auditors:
     - [\[I-#\] Inconsistent documentation, which could irritate potential users](#i--inconsistent-documentation-which-could-irritate-potential-users)
     - [\[S-#\] `Refund()` function has no impact on the length of the array which is used to calculate the `totalAmountCollected`, which could lead to manipulation and loss of funds for the contract](#s--refund-function-has-no-impact-on-the-length-of-the-array-which-is-used-to-calculate-the-totalamountcollected-which-could-lead-to-manipulation-and-loss-of-funds-for-the-contract)
     - [\[S-#\] `Refund()` function has no impact on the length of the array, the slots of the array are still "participating in the raffle" and can win the raffle, which would lead to sending the `prizePool` to the 0-address](#s--refund-function-has-no-impact-on-the-length-of-the-array-the-slots-of-the-array-are-still-participating-in-the-raffle-and-can-win-the-raffle-which-would-lead-to-sending-the-prizepool-to-the-0-address)
+    - [\[H-#\] The randomness generator in the rarity calculation part of the `PuppyRaffle::selectWinner()` function is not really random and can be pre-calculated which breaks one of the main functionalities of the protocol](#h--the-randomness-generator-in-the-rarity-calculation-part-of-the-puppyraffleselectwinner-function-is-not-really-random-and-can-be-pre-calculated-which-breaks-one-of-the-main-functionalities-of-the-protocol)
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
@@ -802,6 +803,34 @@ To address the issue of the `refund()` function not impacting the length of the 
 
 **Recommended Mitigation:** See the aforementioned `Refund()` issue.
 
+
+### [H-#] The randomness generator in the rarity calculation part of the `PuppyRaffle::selectWinner()` function is not really random and can be pre-calculated which breaks one of the main functionalities of the protocol
+
+
+**Description:** The randomness generator in the `PuppyRaffle::selectWinner()` function relies on the `msg.sender` address and the `block.difficulty` parameter. However, neither of these sources is inherently random. A user could potentially precalculate the address that would result in a rare item, and the use of `block.difficulty` for randomness generation is not recommended.
+
+The `block.difficulty` is a measure of the computational effort required to mine a block. It is not a reliable source of randomness because it is influenced by the mining power of the network and can be manipulated by miners. For more information on why `block.difficulty` should not be used for randomness generation, please refer to this [explanation](https://ethereum.stackexchange.com/questions/191/how-can-i-securely-generate-a-random-number-in-my-smart-contract).
+
+
+```solidity
+        // We use a different RNG calculate from the winnerIndex to determine rarity
+@-->    uint256 rarity = uint256(keccak256(abi.encodePacked(msg.sender, block.difficulty))) % 100; 
+        if (rarity <= COMMON_RARITY) {
+            tokenIdToRarity[tokenId] = COMMON_RARITY;
+        } else if (rarity <= COMMON_RARITY + RARE_RARITY) {
+            tokenIdToRarity[tokenId] = RARE_RARITY;
+        } else {
+            tokenIdToRarity[tokenId] = LEGENDARY_RARITY;
+        }
+```
+
+**Impact:** 
+The use of `msg.sender` and `block.difficulty` for randomness generation in the `PuppyRaffle::selectWinner()` function can lead to predictable outcomes and potential manipulation. This compromises the fairness of the raffle and could be exploited by users to their advantage, affecting the integrity of the system.
+
+**Proof of Concept:** NA
+
+**Recommended Mitigation:** 
+See the aforementioned issue with PRNG.
 
 # Medium
 # Low 
