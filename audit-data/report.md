@@ -49,9 +49,9 @@ Lead Auditors:
     - [\[S-#\] `PuppyRaffle::fee` is uint64 and can be overflown breaking the arithmetics of the protocol](#s--puppyrafflefee-is-uint64-and-can-be-overflown-breaking-the-arithmetics-of-the-protocol)
     - [\[S-#\] Unsafe casting of uint256 to uint64 would lead to loss of fee funds, if `fee` is higher than `type(uint64).max`, which is approximately 18.45 ether.](#s--unsafe-casting-of-uint256-to-uint64-would-lead-to-loss-of-fee-funds-if-fee-is-higher-than-typeuint64max-which-is-approximately-1845-ether)
     - [\[S-#\] The `PuppyRaffle::withdrawFees()` function is sucseptible to self-destruct attacks, which would lead to fees being stuck in the contact.](#s--the-puppyrafflewithdrawfees-function-is-sucseptible-to-self-destruct-attacks-which-would-lead-to-fees-being-stuck-in-the-contact)
+    - [\[S-#\] No 0-address checking during the change of `feeAddress`, which could effectively lead to blocking the ability to withdraw fees and/or loss of funds.](#s--no-0-address-checking-during-the-change-of-feeaddress-which-could-effectively-lead-to-blocking-the-ability-to-withdraw-fees-andor-loss-of-funds)
     - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact-1)
     - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact-2)
-    - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact-3)
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
@@ -623,15 +623,30 @@ Remove the first require statement from the `PuppyRidge::withdrawFees()` functio
 ```
 
 
-### [S-#] Title (ROOT CAUSE + IMPACT)
+### [S-#] No 0-address checking during the change of `feeAddress`, which could effectively lead to blocking the ability to withdraw fees and/or loss of funds.
 
-**Description:** 
+**Description:** The `changeFeeAddress()` function does no sanity checks on the input parameters. 
 
-**Impact:** 
+```solidity
+    function changeFeeAddress(address newFeeAddress) external onlyOwner {
+        feeAddress = newFeeAddress; 
+        emit FeeAddressChanged(newFeeAddress);
+    }
+```
 
-**Proof of Concept:**
+**Impact:** In case the `feeAddress` was change to the 0-address, anyone could call the `withdrawFees()`function, thereby transfering `totalFees` to the 0-address, thus leading to loss of funds.
 
-**Recommended Mitigation:** 
+**Proof of Concept:** The owner incidentally/maliciously calls the `changeFeeAddress()` function with the 0-address input. 
+
+**Recommended Mitigation:** Add sanity check for the input parameters:
+
+```diff
+    function changeFeeAddress(address newFeeAddress) external onlyOwner {
++       require(newFeeAddress) != address(0);
+        feeAddress = newFeeAddress; 
+        emit FeeAddressChanged(newFeeAddress);
+    }
+```
 
 
 ### [S-#] Title (ROOT CAUSE + IMPACT)
