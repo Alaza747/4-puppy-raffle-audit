@@ -122,8 +122,6 @@ contract PuppyRaffle is ERC721, Ownable {
     /// @dev we use a hash of on-chain data to generate the random numbers
     /// @dev we reset the active players array after the winner is selected
     /// @dev we send 80% of the funds to the winner, the other 20% goes to the feeAddress
-            // @audit - "rarity" can be manipulated (use different addresses to get rare items)
-
     function selectWinner() external { 
         require(block.timestamp >= raffleStartTime + raffleDuration, "PuppyRaffle: Raffle not over"); 
         require(players.length >= 4, "PuppyRaffle: Need at least 4 players"); 
