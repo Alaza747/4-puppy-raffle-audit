@@ -49,6 +49,9 @@ Lead Auditors:
     - [\[S-#\] `PuppyRaffle::fee` is uint64 and can be overflown breaking the arithmetics of the protocol](#s--puppyrafflefee-is-uint64-and-can-be-overflown-breaking-the-arithmetics-of-the-protocol)
     - [\[S-#\] Unsafe casting of uint256 to uint64 would lead to loss of fee funds, if `fee` is higher than `type(uint64).max`, which is approximately 18.45 ether.](#s--unsafe-casting-of-uint256-to-uint64-would-lead-to-loss-of-fee-funds-if-fee-is-higher-than-typeuint64max-which-is-approximately-1845-ether)
     - [\[S-#\] The `PuppyRaffle::withdrawFees()` function is sucseptible to self-destruct attacks, which would lead to fees being stuck in the contact.](#s--the-puppyrafflewithdrawfees-function-is-sucseptible-to-self-destruct-attacks-which-would-lead-to-fees-being-stuck-in-the-contact)
+    - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact-1)
+    - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact-2)
+    - [\[S-#\] Title (ROOT CAUSE + IMPACT)](#s--title-root-cause--impact-3)
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
@@ -521,16 +524,16 @@ Output:
 @-->    require(address(this).balance == uint256(totalFees), "PuppyRaffle: There are currently players active!"); 
 ```
 
-Although it is a good way to assert that no prize funds are left in the contact, there is an issue. Contracts can receive funds by 3 means: 
+The issue hides in the following: contracts can receive funds by 3 means: 
 1. through `receive()`function - not an issue, as there is no `receive()` function
 2. through `fallback()`function - not an issue, as there is no `fallback()` function
 3. when another contract self-destructs - issue.
 
 **Impact:** If the require statement fails, the `PuppyRaffle::withdrawFees()` function could never be called, leading to breaking the functionality of the contract and losing all the future fees.
 
-**Proof of Concept:** Anyon could forcefully push funds to the contract through self-destruct by creating a contract and calling the destroy method on it. The following test shows the way of accomplishing this.
+**Proof of Concept:** Anyone could forcefully push funds to the contract through self-destruct by creating a contract and calling the destroy method on it. The following test shows the way of accomplishing this.
 
-1. Create an attacker contract 
+1. Create an attacker contract:
 ```solidity
     contract selfDestruct {
         
@@ -604,9 +607,57 @@ Although it is a good way to assert that no prize funds are left in the contact,
     Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 5.80ms (1.23ms CPU time)
 ```
 
-As you see the `address(this).balance` is not equal to the `PuppyRaffle::totalFees()`, thus the `PuppyRidge::withdrawFees()` function would revert during the first require check.
+As you can see the `address(this).balance` is not equal to the `PuppyRaffle::totalFees()`, thus the `PuppyRidge::withdrawFees()` function would revert during the first require check.
 
 **Recommended Mitigation:** 
+Remove the first require statement from the `PuppyRidge::withdrawFees()` function. 
+
+```diff
+        function withdrawFees() external {
+-           require(address(this).balance == uint256(totalFees), "PuppyRaffle: There are currently players active!"); 
+            uint256 feesToWithdraw = totalFees;
+            totalFees = 0;
+            (bool success,) = feeAddress.call{value: feesToWithdraw}("");
+            require(success, "PuppyRaffle: Failed to withdraw fees");
+        }
+```
+
+
+### [S-#] Title (ROOT CAUSE + IMPACT)
+
+**Description:** 
+
+**Impact:** 
+
+**Proof of Concept:**
+
+**Recommended Mitigation:** 
+
+
+### [S-#] Title (ROOT CAUSE + IMPACT)
+
+**Description:** 
+
+**Impact:** 
+
+**Proof of Concept:**
+
+**Recommended Mitigation:** 
+
+
+
+### [S-#] Title (ROOT CAUSE + IMPACT)
+
+**Description:** 
+
+**Impact:** 
+
+**Proof of Concept:**
+
+**Recommended Mitigation:** 
+
+
+
 # Medium
 # Low 
 # Informational

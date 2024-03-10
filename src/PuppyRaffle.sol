@@ -167,8 +167,6 @@ contract PuppyRaffle is ERC721, Ownable {
     }
 
     /// @notice this function will withdraw the fees to the feeAddress
-    // @audit - if the winner already has got his prize, fees are stuck in the contract
-    // @audit - strict equality check --> vulnerable against selfdestruct
     function withdrawFees() external {
         require(address(this).balance == uint256(totalFees), "PuppyRaffle: There are currently players active!"); 
         uint256 feesToWithdraw = totalFees;
