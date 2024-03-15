@@ -43,22 +43,25 @@ Lead Auditors:
   - [Issues found](#issues-found)
 - [Findings](#findings)
 - [High](#high)
-    - [\[S-#\] DoS issue in the for loop, which could lead to the break of the contract](#s--dos-issue-in-the-for-loop-which-could-lead-to-the-break-of-the-contract)
+    - [\[M-1\] DoS issue in the for loop, which could lead to the break of the contract](#m-1-dos-issue-in-the-for-loop-which-could-lead-to-the-break-of-the-contract)
     - [\[H-#\] The reset of the `PuppyRaffle::players[playerIndex]` array happens after the external call `PuppyRaffle::sendValue()` which leads to a reentancy situation.](#h--the-reset-of-the-puppyraffleplayersplayerindex-array-happens-after-the-external-call-puppyrafflesendvalue-which-leads-to-a-reentancy-situation)
     - [\[S-#\] The randomness generator in the `PuppyRaffle::selectWinner()` is not really random and can be influenced which breaks one of the main functioalities of the protocol "4. Every X seconds, the raffle will be able to draw a winner and be minted a random puppy"](#s--the-randomness-generator-in-the-puppyraffleselectwinner-is-not-really-random-and-can-be-influenced-which-breaks-one-of-the-main-functioalities-of-the-protocol-4-every-x-seconds-the-raffle-will-be-able-to-draw-a-winner-and-be-minted-a-random-puppy)
     - [\[S-#\] `PuppyRaffle::fee` is uint64 and can be overflown breaking the arithmetics of the protocol](#s--puppyrafflefee-is-uint64-and-can-be-overflown-breaking-the-arithmetics-of-the-protocol)
     - [\[S-#\] Unsafe casting of uint256 to uint64 would lead to loss of fee funds, if `fee` is higher than `type(uint64).max`, which is approximately 18.45 ether.](#s--unsafe-casting-of-uint256-to-uint64-would-lead-to-loss-of-fee-funds-if-fee-is-higher-than-typeuint64max-which-is-approximately-1845-ether)
     - [\[S-#\] The `PuppyRaffle::withdrawFees()` function is sucseptible to self-destruct attacks, which would lead to fees being stuck in the contact.](#s--the-puppyrafflewithdrawfees-function-is-sucseptible-to-self-destruct-attacks-which-would-lead-to-fees-being-stuck-in-the-contact)
-    - [\[S-#\] No 0-address checking during the change of `feeAddress`, which could effectively lead to blocking the ability to withdraw fees and/or loss of funds.](#s--no-0-address-checking-during-the-change-of-feeaddress-which-could-effectively-lead-to-blocking-the-ability-to-withdraw-fees-andor-loss-of-funds)
-    - [\[I-#\] `PuppyRaffle::_isActivePlayer()` is set to internal and not called anywhere, effectively being an unused code](#i--puppyraffle_isactiveplayer-is-set-to-internal-and-not-called-anywhere-effectively-being-an-unused-code)
-    - [\[I-#\] Inconsistent documentation, which could irritate potential users](#i--inconsistent-documentation-which-could-irritate-potential-users)
     - [\[S-#\] `Refund()` function has no impact on the length of the array which is used to calculate the `totalAmountCollected`, which could lead to manipulation and loss of funds for the contract](#s--refund-function-has-no-impact-on-the-length-of-the-array-which-is-used-to-calculate-the-totalamountcollected-which-could-lead-to-manipulation-and-loss-of-funds-for-the-contract)
     - [\[S-#\] `Refund()` function has no impact on the length of the array, the slots of the array are still "participating in the raffle" and can win the raffle, which would lead to sending the `prizePool` to the 0-address](#s--refund-function-has-no-impact-on-the-length-of-the-array-the-slots-of-the-array-are-still-participating-in-the-raffle-and-can-win-the-raffle-which-would-lead-to-sending-the-prizepool-to-the-0-address)
     - [\[H-#\] The randomness generator in the rarity calculation part of the `PuppyRaffle::selectWinner()` function is not really random and can be pre-calculated which breaks one of the main functionalities of the protocol](#h--the-randomness-generator-in-the-rarity-calculation-part-of-the-puppyraffleselectwinner-function-is-not-really-random-and-can-be-pre-calculated-which-breaks-one-of-the-main-functionalities-of-the-protocol)
 - [Medium](#medium)
 - [Low](#low)
 - [Informational](#informational)
+    - [\[I-#\] No 0-address checking during the change of `feeAddress`, which could effectively lead to blocking the ability to withdraw fees and/or loss of funds.](#i--no-0-address-checking-during-the-change-of-feeaddress-which-could-effectively-lead-to-blocking-the-ability-to-withdraw-fees-andor-loss-of-funds)
+    - [\[I-#\] `PuppyRaffle::_isActivePlayer()` is set to internal and not called anywhere, effectively being an unused code](#i--puppyraffle_isactiveplayer-is-set-to-internal-and-not-called-anywhere-effectively-being-an-unused-code)
+    - [\[I-#\] Inconsistent documentation, which could irritate potential users](#i--inconsistent-documentation-which-could-irritate-potential-users)
+    - [\[I-#\] Use of floating pragma version is not a best practice](#i--use-of-floating-pragma-version-is-not-a-best-practice)
 - [Gas](#gas)
+    - [\[G-1\] `raffleDuration` variable is never changed but declared as a storage variable increasing the gas cost](#g-1-raffleduration-variable-is-never-changed-but-declared-as-a-storage-variable-increasing-the-gas-cost)
+    - [\[G-2\] `commonImageUri`, `rareImageUri` \& `legendaryImageUri` variabls are never changed but declared as a storage variables increasing the gas cost](#g-2-commonimageuri-rareimageuri--legendaryimageuri-variabls-are-never-changed-but-declared-as-a-storage-variables-increasing-the-gas-cost)
 
 # Protocol Summary
 
@@ -114,7 +117,7 @@ Player - Participant of the raffle, has the power to enter the raffle with the `
 # Findings
 # High
 
-### [S-#] DoS issue in the for loop, which could lead to the break of the contract
+### [M-1] DoS issue in the for loop, which could lead to the break of the contract
 
 **Description:** Function `PuppyRaffle.sol::enterRaffle()` has a for-loop which checks for duplicate players and reverts if finds any. 
 The problem arises when the `PuppyRaffle.sol::players` array gets big and this could lead to a denial of service (i.e. the function `PuppyRaffle.sol::enterRaffle()` becomes unfinishable).
@@ -626,61 +629,6 @@ Remove the first require statement from the `PuppyRidge::withdrawFees()` functio
 ```
 
 
-### [S-#] No 0-address checking during the change of `feeAddress`, which could effectively lead to blocking the ability to withdraw fees and/or loss of funds.
-
-**Description:** The `changeFeeAddress()` function does no sanity checks on the input parameters. 
-
-```solidity
-    function changeFeeAddress(address newFeeAddress) external onlyOwner {
-        feeAddress = newFeeAddress; 
-        emit FeeAddressChanged(newFeeAddress);
-    }
-```
-
-**Impact:** In case the `feeAddress` was change to the 0-address, anyone could call the `withdrawFees()`function, thereby transfering `totalFees` to the 0-address, thus leading to loss of funds.
-
-**Proof of Concept:** The owner incidentally/maliciously calls the `changeFeeAddress()` function with the 0-address input. 
-
-**Recommended Mitigation:** Add sanity check for the input parameters:
-
-```diff
-    function changeFeeAddress(address newFeeAddress) external onlyOwner {
-+       require(newFeeAddress) != address(0);
-        feeAddress = newFeeAddress; 
-        emit FeeAddressChanged(newFeeAddress);
-    }
-```
-
-
-### [I-#] `PuppyRaffle::_isActivePlayer()` is set to internal and not called anywhere, effectively being an unused code
-
-**Description:** The `_isActivePlayer()` function's visibility is set to internal and not called anywhere. This function does not bring any value
-
-**Impact:** NA 
-
-**Proof of Concept:** NA
-
-**Recommended Mitigation:** If the functionality of the function `_isActivePlayer()` is required, visibility should be changed or the function should be called from the relevant function within the contract.
-
-
-
-### [I-#] Inconsistent documentation, which could irritate potential users
-
-**Description:** The documentation first states that one can enter himself "multiple times", but the next point tells the user, that duplicate addresses are not allowed. The latter is also consistent with the checks in the code.
-
-"
-1. Call the `enterRaffle` function with the following parameters:
-   1. `address[] participants`: A list of addresses that enter. You can use this to enter yourself multiple times, or yourself and a group of your friends.
-2. Duplicate addresses are not allowed
-"
-
-**Impact:** User irritation. Potentially loss of revenue, if user doesn't manage enter the Raffle.
-
-**Proof of Concept:** NA
-
-**Recommended Mitigation:** Rewrite the documentation.
-
-
 
 ### [S-#] `Refund()` function has no impact on the length of the array which is used to calculate the `totalAmountCollected`, which could lead to manipulation and loss of funds for the contract
 
@@ -835,4 +783,125 @@ See the aforementioned issue with PRNG.
 # Medium
 # Low 
 # Informational
+
+### [I-#] No 0-address checking during the change of `feeAddress`, which could effectively lead to blocking the ability to withdraw fees and/or loss of funds.
+
+**Description:** The `changeFeeAddress()` function does no sanity checks on the input parameters. 
+
+```solidity
+    function changeFeeAddress(address newFeeAddress) external onlyOwner {
+        feeAddress = newFeeAddress; 
+        emit FeeAddressChanged(newFeeAddress);
+    }
+```
+
+**Impact:** In case the `feeAddress` was change to the 0-address, anyone could call the `withdrawFees()`function, thereby transfering `totalFees` to the 0-address, thus leading to loss of funds.
+
+**Proof of Concept:** The owner incidentally/maliciously calls the `changeFeeAddress()` function with the 0-address input. 
+
+**Recommended Mitigation:** Add sanity check for the input parameters:
+
+```diff
+    function changeFeeAddress(address newFeeAddress) external onlyOwner {
++       require(newFeeAddress) != address(0);
+        feeAddress = newFeeAddress; 
+        emit FeeAddressChanged(newFeeAddress);
+    }
+```
+
+
+### [I-#] `PuppyRaffle::_isActivePlayer()` is set to internal and not called anywhere, effectively being an unused code
+
+**Description:** The `_isActivePlayer()` function's visibility is set to internal and not called anywhere. This function does not bring any value
+
+**Impact:** NA 
+
+**Proof of Concept:** NA
+
+**Recommended Mitigation:** If the functionality of the function `_isActivePlayer()` is required, visibility should be changed or the function should be called from the relevant function within the contract.
+
+
+
+### [I-#] Inconsistent documentation, which could irritate potential users
+
+**Description:** The documentation first states that one can enter himself "multiple times", but the next point tells the user, that duplicate addresses are not allowed. The latter is also consistent with the checks in the code.
+
+"
+1. Call the `enterRaffle` function with the following parameters:
+   1. `address[] participants`: A list of addresses that enter. You can use this to enter yourself multiple times, or yourself and a group of your friends.
+2. Duplicate addresses are not allowed
+"
+
+**Impact:** User irritation. Potentially loss of revenue, if user doesn't manage enter the Raffle.
+
+**Proof of Concept:** NA
+
+**Recommended Mitigation:** Rewrite the documentation.
+
+
+
+
+### [I-#] Use of floating pragma version is not a best practice
+
+**Description:** The contract uses `pragma solidity ^0.7.6;`.
+
+**Impact:** Using a floating pragma version in Solidity is not considered best practice because it can lead to unexpected behavior due to compiler updates. When you specify a version with a caret (^), it means that the compiler will use the latest version that is compatible with the specified version. This can introduce breaking changes if a new version of the compiler introduces changes that affect your code. It's safer to specify a fixed version to ensure that your contract behaves consistently across different environments.
+
+**Proof of Concept:** NA
+
+**Recommended Mitigation:** 
+To mitigate the risks associated with using a floating pragma version, it is recommended to specify a fixed version of the Solidity compiler for your contract. This ensures that your contract will always be compiled with the same version of the compiler, regardless of any updates to the compiler.
+
+To specify a fixed version, you would change the pragma statement in your contract to something like this:
+
+```diff
++ pragma solidity 0.7.6;
+- pragma solidity ^0.7.6;
+```
+
+By specifying the version without the caret (^), you are telling the compiler to use exactly version 0.7.6. This way, you can be confident that your contract will always behave the same way, regardless of any updates to the Solidity compiler.
+
+
 # Gas 
+### [G-1] `raffleDuration` variable is never changed but declared as a storage variable increasing the gas cost
+
+**Description:** `raffleDuration` variable is supposed to stay constant for the lifetime of the contract, but is declared as a storage variable.
+
+**Impact:** Declaring a variable as a storage variable when it does not need to be changed after the contract is deployed can unnecessarily increase the gas cost of the contract. This is because storage variables are more expensive to use in terms of gas than memory variables.
+
+**Proof of Concept:**
+
+To demonstrate the impact of using a storage variable for a constant value, consider a scenario where the `raffleDuration` is used in a function that is called frequently. Each time the function is called, the EVM will need to read the `raffleDuration` from storage, which consumes more gas than if it were a memory variable.
+
+**Recommended Mitigation:**
+
+To mitigate this issue, you can declare the `raffleDuration` as an immutable variable. Here's how you can declare it as an immutable variable:
+
+```solidity
+uint256 immutable raffleDuration;
+```
+
+By doing this, you can reduce the gas cost associated with reading the `raffleDuration` value, which can lead to cost savings for the users of your contract.
+
+
+
+### [G-2] `commonImageUri`, `rareImageUri` & `legendaryImageUri` variabls are never changed but declared as a storage variables increasing the gas cost
+
+**Description:** All these variables are supposed to stay constant for the lifetime of the contract, but are declared as storage variables.
+
+**Impact:** Declaring a variable as a storage variable when it does not need to be changed after the contract is deployed can unnecessarily increase the gas cost of the contract. This is because storage variables are more expensive to use in terms of gas than memory variables.
+
+**Proof of Concept:**
+
+**Recommended Mitigation:**
+
+To mitigate this issue, you can declare these variables as immutable variables. Here's how you can do that:
+
+```solidity
+    string private constant commonImageUri = "ipfs://QmSsYRx3LpDAb1GZQm7zZ1AuHZjfbPkD6J7s9r41xu1mf8";
+    string private constant rareImageUri = "ipfs://QmUPjADFGEKmfohdTaNcWhp7VGk26h5jXDA7v3VtTnTLcW";
+    string private constant legendaryImageUri = "ipfs://QmYx6GsYAKnNzZ9A6NvEKV9nf1VaDzJrqDR23Y8YSkebLU";
+
+```
+
+By doing this, you can reduce the gas cost associated with reading the values, which can lead to cost savings for the users of your contract.
