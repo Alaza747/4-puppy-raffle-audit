@@ -11,7 +11,7 @@ header-includes:
     \centering
     \begin{figure}[h]
         \centering
-        \includegraphics[width=0.5\textwidth]{logo.pdf} 
+        \includegraphics[width=0.5\textwidth]{audit.data/Audit_Logo.pdf} 
     \end{figure}
     \vspace*{2cm}
     {\Huge\bfseries Puppy Raffle Audit Report\par}
